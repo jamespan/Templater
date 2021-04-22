@@ -3,6 +3,7 @@ import { App, TFile } from "obsidian";
 import TemplaterPlugin from "main";
 import { TParser } from "TParser";
 import { InternalModule } from "./InternalModule";
+import { InternalModuleTrade } from "./trade/InternalModuleTrade";
 import { InternalModuleDate } from "./date/InternalModuleDate";
 import { InternalModuleFile } from "./file/InternalModuleFile";
 import { InternalModuleWeb } from "./web/InternalModuleWeb";
@@ -18,6 +19,7 @@ export class InternalTemplateParser extends TParser {
     }
 
     createModules() {
+        this.modules_array.push(new InternalModuleTrade(this.app, this.plugin));
         this.modules_array.push(new InternalModuleDate(this.app, this.plugin));
         this.modules_array.push(new InternalModuleFile(this.app, this.plugin));
         this.modules_array.push(new InternalModuleWeb(this.app, this.plugin));
