@@ -108,7 +108,7 @@ class Risk {
             this.position = assets / 10;
         } else {
             let x = setup.pivot
-            if (trades != null && trades.length > 0) {
+            if (trades != null && trades.length === layer) {
                 let invested = 0;
                 let shares = 0;
                 for (let i = 0; i < trades.length; ++i) {
@@ -223,7 +223,7 @@ class Pyramid {
         primary.group.slice(-1)[0].cancel = cond;
         primary.group.slice(-1)[0].loss = (this.stop - this.limit) * this.share * (this.builder.setup.long ? -1 : 1);
 
-        if (this.builder.config.volume != null) {
+        if (this.builder.config.volume != null && this.builder.config.trades == null) {
             let avg = parseInt(this.builder.config.volume.split(',').join(''));
             let volume = new MarketOrder(symbol, this.builder.setup.close(), this.share);
             // sell near market close if volume not high enough on pivot day
@@ -234,6 +234,9 @@ class Pyramid {
     }
 
     exit() {
+        if (this.builder['exit'] == null) {
+            return
+        }
         for (const [key, config] of Object.entries(this.builder['exit'])) {
             if (key === 'pivot') {
                 this.exits[key] = this.exit_pivot(config);
