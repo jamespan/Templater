@@ -8,6 +8,7 @@ import {
     TrailStopOrder,
     StopOrder
 } from "./order"
+import {evaluate} from "mathjs";
 
 const defaults = (o: any, v: any) => o != null ? o : v;
 
@@ -64,16 +65,15 @@ class Setup {
     constructor(input: any) {
         this.symbol = input.symbol;
         this._direction = defaults(input.direction, 'long');
-        this.pivot = eval(input.pivot);
+        this.pivot = evaluate(input.pivot);
         this.stop = defaults(input.stop, input.pivot);
         if (typeof this.stop === 'string' || this.stop instanceof String) {
             if (!this.stop.endsWith('%')) {
-                // @ts-ignore
-                this.stop = eval(this.stop);
+                this.stop = evaluate(this.stop as any);
             }
         }
         this.atr = input.atr
-        this.take = eval(input.take);
+        this.take = input.take != null ? evaluate(input.take): input.take;
         this.pattern = defaults(input.pattern, 'Consolidation');
     }
 
@@ -99,7 +99,7 @@ class Risk {
     public take: any;
 
     constructor(assets:any, setup:any, trades:any, layer:number) {
-        assets = eval(assets);
+        assets = evaluate(assets);
         this.setup = setup
         const percentageStopLoss = (typeof setup.stop === 'string' || setup.stop instanceof String) && setup.stop.endsWith('%');
         if (percentageStopLoss) {
@@ -352,7 +352,7 @@ export function riding(builder:PyramidBuilder, params:any) {
                 shares = shares.left();
             }
             let oco = new OrderOCO();
-            oco.group.push(new LimitOrder(symbol, builder.setup.close(), shares, config.target));
+            oco.group.push(new LimitOrder(symbol, builder.setup.close(), shares, evaluate(config.target)));
             oco.group.push(new StopOrder(symbol, builder.setup.close(), shares, stop));
             multi.orders.push(oco);
             multi.orders = multi.orders.reverse();
@@ -361,17 +361,3 @@ export function riding(builder:PyramidBuilder, params:any) {
     return strategies;
 }
 
-//
-// if (require.main === module) {
-//     input = `
-//     {"version":2,"assets":30000,"build":{"style":"swing","setup":{"symbol":"AAPL","pivot":100,"stop":99,"pattern":"Consolidation"},"pyramid":{"count":3,"trades":["10@101"]},"exit":{"pivot":{"low":97,"prev":96},"segment":null}},"ride":[{"Take 50%":{"shares":100,"part":"half","support":110,"target":120}}]}
-//     `
-//     let pyramids = building(JSON.parse(input));
-//     let builder = pyramids[0].builder;
-//     riding(builder, JSON.parse(input)['ride'])
-// } else {
-//     module.exports = {
-//         building: building,
-//         riding: riding,
-//     }
-// }
