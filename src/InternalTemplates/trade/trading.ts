@@ -237,19 +237,20 @@ class Pyramid {
         if (this.builder['exit'] == null) {
             return
         }
+        let multi = this.exit_base();
         for (const [key, config] of Object.entries(this.builder['exit'])) {
             if (key === 'pivot') {
-                this.exits[key] = this.exit_pivot(config);
+                this.exits["universe"] = this.exit_pivot(config, multi);
+            }
+            if (key === 'segment') {
+                this.exits["universe"] = this.exit_segment(config, multi);
             }
         }
     }
 
-    exit_pivot(params:any):MultiOCO {
+    exit_base():MultiOCO {
         let symbol = this.builder.setup.symbol;
         let multi = new MultiOCO();
-        let low = defaults(params['low'], this.stop);
-        let prev = defaults(params['prev'], this.stop);
-        let early = [low, prev].sort().reverse();
         let shares = [this.share.half(), this.share.left()];
         for (let i = 0; i < shares.length; ++i) {
             let oco = new OrderOCO();
@@ -259,16 +260,51 @@ class Pyramid {
             oco.group.slice(-1)[0].submit = this.primary.group[1].submit;
             oco.group.push(new StopOrder(symbol, this.builder.setup.close(), shares[i], this.stop));
             oco.group.slice(-1)[0].cancel = this.primary.group[1].submit;
+            // oco.group.slice(-1)[0].loss = (this.stop - this.limit) * shares[i] * (this.builder.setup.long ? -1 : 1);
+            multi.orders.push(oco);
+        }
+        return multi;
+    }
+
+    exit_pivot(params:any, base:MultiOCO):MultiOCO {
+        let symbol = this.builder.setup.symbol;
+        // let multi = new MultiOCO();
+        let low = defaults(params['low'], this.stop);
+        let prev = defaults(params['prev'], this.stop);
+        let early = [low, prev].sort().reverse();
+        let shares = [this.share.half(), this.share.left()];
+        for (let i = 0; i < shares.length; ++i) {
+            let oco = base.orders[i];
             let advance = new MarketOrder(symbol, this.builder.setup.close(), shares[i]);
             // sell near market close if price undercut pivot day low and not rebound
             advance.submit = `${symbol} STUDY '{tho=true};Between(SecondsTillTime(1600),0,${60 * 3}) and close < ${early[i].financial()};1m' IS TRUE`;
             advance.tif = "GTC";
             advance.loss = (early[i] - this.limit) * shares[i] * (this.builder.setup.long ? -1 : 1);
             oco.group.push(advance);
-            multi.orders.push(oco);
         }
 
-        return multi;
+        return base;
+    }
+
+    exit_segment(params: any, base: MultiOCO): MultiOCO {
+        let symbol = this.builder.setup.symbol;
+        let stop = defaults(params['stop'], this.stop);
+        let avg = defaults(params['avg'], '5%');
+        if (typeof avg === 'string' || avg instanceof String) {
+            if (avg.endsWith("%")) {
+                avg = parseFloat(avg.toString()) / 100;
+            }
+        }
+        let shares = [this.share.half(), this.share.left()];
+        // solve {a==(c*(h+l)-s*h-y*l)/(c*(h+l))}
+        let stops = [-((avg-1)*this.limit*this.share+stop*shares[0])/(shares[1]),stop]
+        for (let i = 0; i < shares.length; ++i) {
+            let oco = base.orders[i];
+            oco.group[2] = new StopOrder(symbol, this.builder.setup.close(), shares[i], stops[i])
+            oco.group[2].cancel = this.primary.group[1].submit;
+            oco.group[2].loss = (stops[i] - this.limit) * shares[i] * (this.builder.setup.long ? -1 : 1);
+        }
+        return base;
     }
 }
 
@@ -326,9 +362,9 @@ export function riding(builder:PyramidBuilder, params:any) {
         let pyramid = new Pyramid(builder, 0, trade);
         pyramid.build();
         pyramid.exit();
-        let multi = pyramid.exits['pivot'];
+        let multi = pyramid.exits['universe'];
         if (multi != null) {
-            strategies.set('Pivot Low', multi);
+            strategies.set('Universe', multi);
         }
     }
     if (params == null || params.length === 0) {
