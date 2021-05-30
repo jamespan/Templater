@@ -193,7 +193,7 @@ class Pyramid {
         if (this.builder.config['dynamic'] && this.limit !== this.price) {
             let upper = [1.25, 3.25, 5][this.number];
             if (this.builder.config.count === 1) {
-                upper = 4.5;
+                upper = 2.5;
             }
             this.limit = this.builder.setup.pivot * (100 + upper).percent();
             primary.trigger = new LimitOrder(
