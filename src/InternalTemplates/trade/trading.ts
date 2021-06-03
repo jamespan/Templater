@@ -73,7 +73,7 @@ class Setup {
             }
         }
         this.atr = input.atr
-        this.take = input.take != null ? evaluate(input.take): input.take;
+        this.take = input.take != null ? evaluate(input.take) : input.take;
         this.pattern = defaults(input.pattern, 'Consolidation');
     }
 
@@ -98,7 +98,7 @@ class Risk {
     public profit: any;
     public take: any;
 
-    constructor(assets:any, setup:any, trades:any, layer:number) {
+    constructor(assets: any, setup: any, trades: any, layer: number) {
         assets = evaluate(assets);
         this.setup = setup
         const percentageStopLoss = (typeof setup.stop === 'string' || setup.stop instanceof String) && setup.stop.endsWith('%');
@@ -149,13 +149,13 @@ class Pyramid {
     public position: any;
     public price: any;
     public limit: any;
-    public share: any;
+    public share: number;
     public invested: any;
     public stop: any;
     public take: any;
     public protect: any;
 
-    constructor(builder:PyramidBuilder, number:number, trade:any) {
+    constructor(builder: PyramidBuilder, number: number, trade: any) {
         this.builder = builder;
         this.number = number;
         this.primary = null;
@@ -251,7 +251,7 @@ class Pyramid {
         }
     }
 
-    exit_base():MultiOCO {
+    exit_base(): MultiOCO {
         let symbol = this.builder.setup.symbol;
         let multi = new MultiOCO();
         let shares = [this.share.half(), this.share.left()];
@@ -269,7 +269,7 @@ class Pyramid {
         return multi;
     }
 
-    exit_pivot(params:any, base:MultiOCO):MultiOCO {
+    exit_pivot(params: any, base: MultiOCO): MultiOCO {
         let symbol = this.builder.setup.symbol;
         // let multi = new MultiOCO();
         let low = defaults(params['low'], this.stop);
@@ -300,7 +300,7 @@ class Pyramid {
         }
         let shares = [this.share.half(), this.share.left()];
         // solve {a==(c*(h+l)-s*h-y*l)/(c*(h+l))}
-        let stops = [-((avg-1)*this.limit*this.share+stop*shares[0])/(shares[1]),stop]
+        let stops = [-((avg - 1) * this.limit * this.share + stop * shares[0]) / (shares[1]), stop]
         for (let i = 0; i < shares.length; ++i) {
             let oco = base.orders[i];
             oco.group[2] = new StopOrder(symbol, this.builder.setup.close(), shares[i], stops[i])
@@ -318,7 +318,7 @@ export class PyramidBuilder {
     public config: any;
     public exit: any;
 
-    constructor(style:any, setup:any, risk:any, config:any, exit:any) {
+    constructor(style: any, setup: any, risk: any, config: any, exit: any) {
         this.style = style
         this.setup = setup
         this.risk = risk
@@ -342,7 +342,7 @@ export class PyramidBuilder {
     }
 }
 
-export function building(params:any) {
+export function building(params: any) {
     let setup = new Setup(params.build.setup);
     setup.init();
     let risk = new Risk(params['assets'], setup, params.build['pyramid']['trades'], params.build['pyramid']['count']);
@@ -350,7 +350,22 @@ export function building(params:any) {
     return builder.build();
 }
 
-export function riding(builder:PyramidBuilder, params:any) {
+export function checking(pyramids: Array<Pyramid>) {
+    let message = "";
+    let shares = [] as number[];
+    for (let i = 0; i < pyramids.length; ++i) {
+        let pyramid = pyramids[i];
+        let share = pyramid.primary.trigger.share;
+        if (shares.length > 0 && share >= shares[shares.length-1]) {
+            message = "Follow through buys not in pyramid";
+            break;
+        }
+        shares.push(share);
+    }
+    return message;
+}
+
+export function riding(builder: PyramidBuilder, params: any) {
     let strategies = new Map();
     if (builder.config['trades'] != null) {
         let trades = builder.config['trades'].map((x: string) => x.split('@', 2));
