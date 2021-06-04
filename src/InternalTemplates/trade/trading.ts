@@ -182,6 +182,9 @@ class Pyramid {
         } else {
             this.stop = this.price * (100 - builder.risk.risk).percent();
         }
+        if (this.number > 0) {
+            this.stop = builder.setup.pivot * (100 - 0.5).percent();
+        }
         this.take = builder.risk.take;
 
     }
@@ -197,7 +200,7 @@ class Pyramid {
             }
             this.limit = this.builder.setup.pivot * (100 + upper).percent();
             primary.trigger = new LimitOrder(
-                symbol, this.builder.setup.open(), this.share, 'LAST+.10');
+                symbol, this.builder.setup.open(), this.share, 'LAST+.00');
             primary.trigger.submit = `${symbol} STUDY '{tho=true};Between(SecondsTillTime(1000), ${-60 * 60 * 6 + 60 * 30}, 0) and Between(close, ${this.price.financial()}, ${this.limit.financial()}) and (Average(close, 10) > ExpAverage(close, 21) and ExpAverage(close, 21) > Average(close, 50) and low >= Average(close, 10));1m' IS TRUE`;
         } else {
             primary.trigger = new StopLimitOrder(
@@ -356,7 +359,7 @@ export function checking(pyramids: Array<Pyramid>) {
     for (let i = 0; i < pyramids.length; ++i) {
         let pyramid = pyramids[i];
         let share = pyramid.primary.trigger.share;
-        if (shares.length > 0 && share >= shares[shares.length-1]) {
+        if (shares.length > 0 && share >= shares[shares.length - 1]) {
             message = "Follow through buys not in pyramid";
             break;
         }
