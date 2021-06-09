@@ -72,8 +72,14 @@ class Setup {
                 this.stop = evaluate(this.stop as any);
             }
         }
-        this.atr = input.atr
-        this.take = input.take != null ? evaluate(input.take) : input.take;
+        this.atr = input.atr;
+        this.take = input.take;
+        // this.take = input.take != null ? evaluate(input.take) : input.take;
+        if (typeof this.take === 'string' || this.take instanceof String) {
+            if (!this.take.endsWith('%')) {
+                this.take = evaluate(this.take as any);
+            }
+        }
         this.pattern = defaults(input.pattern, 'Consolidation');
     }
 
@@ -134,9 +140,15 @@ class Risk {
         this.profit = Math.min(this.risk * 3, 24);
         this.profit = Math.max(10, this.profit);
         this.take = setup.pivot * (100 + this.profit).percent();
+        const percentageTake = setup.take != null && (typeof setup.take === 'string' || setup.take instanceof String) && setup.take.endsWith('%');
         if (setup.take != null) {
-            this.take = setup.take;
-            this.profit = (this.take / setup.pivot - 1) * 100;
+            if (percentageTake) {
+                this.profit = parseFloat(setup.take.slice(0, -1));
+                this.take = setup.pivot * (100 + this.profit).percent();
+            } else {
+                this.take = setup.take;
+                this.profit = (this.take / setup.pivot - 1) * 100;
+            }
         }
     }
 }
@@ -220,6 +232,7 @@ class Pyramid {
 
         // round-trip sell rule
         this.protect = this.price * (100 + 10).percent();
+        this.protect = Math.min(this.price + (this.price - this.stop) * 2, this.protect);
         let cond = `${symbol} MARK AT OR ${this.builder.setup.long ? "ABOVE" : "BELOW"} ${this.protect.financial()}`;
 
         primary.group.push(new StopOrder(symbol, this.builder.setup.close(), this.share, this.limit));
@@ -359,7 +372,7 @@ export function checking(pyramids: Array<Pyramid>) {
     for (let i = 0; i < pyramids.length; ++i) {
         let pyramid = pyramids[i];
         let share = pyramid.primary.trigger.share;
-        if (shares.length > 0 && share >= shares[shares.length - 1]) {
+        if (shares.length > 0 && share > shares[shares.length - 1]) {
             message = "Follow through buys not in pyramid";
             break;
         }
