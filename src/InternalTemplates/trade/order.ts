@@ -3,11 +3,11 @@ function financial(x: number) {
 }
 
 class ConditionalOrder {
-    public symbol: any;
-    public direction: any;
-    public prefix: any;
-    public share: any;
-    public tif: any;
+    public symbol: string;
+    public direction: string;
+    public prefix: string;
+    public share: number;
+    public tif: string;
     public submitAt: any;
     public cancelAt: any;
     public submit: any;
@@ -144,7 +144,7 @@ export class OrderOCO {
 }
 
 export class OrderOTOCO extends OrderOCO {
-    public trigger: any;
+    public trigger: ConditionalOrder;
 
     constructor() {
         super();

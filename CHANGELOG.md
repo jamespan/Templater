@@ -2,6 +2,63 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [1.7.1](https://github.com/SilentVoid13/Templater/compare/1.7.0...1.7.1) (2021-05-23)
+
+
+### Bug Fixes
+
+* fixing broken command with comments ([c407fc7](https://github.com/SilentVoid13/Templater/commit/c407fc7fdfc348bec63c0716c251021642c16f4d)), closes [#235](https://github.com/SilentVoid13/Templater/issues/235)
+* fixing multiple dynamic commands bug ([d6e2d86](https://github.com/SilentVoid13/Templater/commit/d6e2d8650be72d7d402692d2c49215234ecf7d2a)), closes [#195](https://github.com/SilentVoid13/Templater/issues/195)
+
+## [1.7.0](https://github.com/SilentVoid13/Templater/compare/1.6.0...1.7.0) (2021-05-22)
+
+
+### Features
+
+* adding multiple cursor at the same with tp.file.cursor ([9a54e90](https://github.com/SilentVoid13/Templater/commit/9a54e90b1faaa8efc72dcbccb6fa6c6823b1972d)), closes [#99](https://github.com/SilentVoid13/Templater/issues/99)
+* Allow users to provide a default template for empty new files ([#203](https://github.com/SilentVoid13/Templater/issues/203)) ([4903f15](https://github.com/SilentVoid13/Templater/commit/4903f15389bba62b2859644ee2fb463af8abfe85)), closes [#200](https://github.com/SilentVoid13/Templater/issues/200)
+
+
+### Bug Fixes
+
+* fixing documentation broken links ([3213bfa](https://github.com/SilentVoid13/Templater/commit/3213bfac79859f7f10c061449a8f2715d9672797)), closes [#194](https://github.com/SilentVoid13/Templater/issues/194)
+* fixing dynamic commands format break ([7e06048](https://github.com/SilentVoid13/Templater/commit/7e06048a3afd44bac4b2f41d215a99ad7a92e10b)), closes [#190](https://github.com/SilentVoid13/Templater/issues/190) [#204](https://github.com/SilentVoid13/Templater/issues/204)
+* fixing dynamic commands match when inserting template ([dcefbc7](https://github.com/SilentVoid13/Templater/commit/dcefbc73ab706f257c788cb2ff07a45695fb5fdf)), closes [#188](https://github.com/SilentVoid13/Templater/issues/188)
+* fixing invalid null comparison getting triggered on empty strings ([1df50cf](https://github.com/SilentVoid13/Templater/commit/1df50cfff6fc48162f324c0f14b63d80197eeea7))
+
+## [1.6.0](https://github.com/SilentVoid13/Templater/compare/1.5.5...1.6.0) (2021-05-03)
+
+
+### Features
+
+* adding better error handling, more user-friendly too ([51e9411](https://github.com/SilentVoid13/Templater/commit/51e94119001911d7817504fdbdc236919d58a173))
+* adding dynamic templates, rendering in preview mode ([0e2442c](https://github.com/SilentVoid13/Templater/commit/0e2442cacdcee517a3313951a177cdc77eaf2dcb)), closes [#181](https://github.com/SilentVoid13/Templater/issues/181) [#131](https://github.com/SilentVoid13/Templater/issues/131) [#63](https://github.com/SilentVoid13/Templater/issues/63)
+* adding new tp.config module ([39c224a](https://github.com/SilentVoid13/Templater/commit/39c224ad7ecbcfb4c972f863f24c36e2f33ccf1d))
+* adding new tp.file.move to move a file across the vault ([3877dde](https://github.com/SilentVoid13/Templater/commit/3877dde6654507881d64c26e8eb59574992f23f3)), closes [#103](https://github.com/SilentVoid13/Templater/issues/103)
+* adding script user functions ([4a3404c](https://github.com/SilentVoid13/Templater/commit/4a3404c834ab22e9d44ba87b1fc2d63f975eefcc)), closes [#123](https://github.com/SilentVoid13/Templater/issues/123) [#85](https://github.com/SilentVoid13/Templater/issues/85)
+* adding tp.file.exists function ([e4273b7](https://github.com/SilentVoid13/Templater/commit/e4273b706465df012648b8a0163018f4925b5808)), closes [#150](https://github.com/SilentVoid13/Templater/issues/150)
+
+
+### Bug Fixes
+
+* fixing typo in tp.system ([efd8711](https://github.com/SilentVoid13/Templater/commit/efd8711a4f23a2326cd8d156f1545881a9e1c738)), closes [#144](https://github.com/SilentVoid13/Templater/issues/144)
+
+### [1.5.5](https://github.com/SilentVoid13/Templater/compare/1.5.4...1.5.5) (2021-04-22)
+
+
+### Features
+
+* **internaltemplates:** adding new tp.system.suggester ([91cd04e](https://github.com/SilentVoid13/Templater/commit/91cd04ed22fb19c9f60a9d598520ea4c62bc5c72))
+* adding the tp.obsidian object to access obsidian functions if needed ([eab1178](https://github.com/SilentVoid13/Templater/commit/eab11785f5c411aaf8ac7ab8c5e1e8047b8d6ed0))
+* **settings:** adding a setting to specify a custom shell to run command with(powershell, zsh, ...) ([d7e6894](https://github.com/SilentVoid13/Templater/commit/d7e6894f0d00f672b326460a7554c976f10e51c9)), closes [#129](https://github.com/SilentVoid13/Templater/issues/129) [#128](https://github.com/SilentVoid13/Templater/issues/128)
+
+
+### Bug Fixes
+
+* fixing tp.dynamic ([7f16c94](https://github.com/SilentVoid13/Templater/commit/7f16c9412f92a955a63713f8f458a832e5e068b5))
+* fixing tp.file.include on block when the block is the last block of the file ([f886b1c](https://github.com/SilentVoid13/Templater/commit/f886b1c51c201f13feea53b09cd5885ac244628e)), closes [#124](https://github.com/SilentVoid13/Templater/issues/124)
+* fixing tp.system.prompt, now handles cancellation ([6afad93](https://github.com/SilentVoid13/Templater/commit/6afad93063bbe5868a407d2fb5c563972bcb8933)), closes [#125](https://github.com/SilentVoid13/Templater/issues/125)
+
 ### [1.5.4](https://github.com/SilentVoid13/Templater/compare/1.5.3...1.5.4) (2021-04-17)
 
 

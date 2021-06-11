@@ -72,8 +72,14 @@ class Setup {
                 this.stop = evaluate(this.stop as any);
             }
         }
-        this.atr = input.atr
-        this.take = input.take != null ? evaluate(input.take): input.take;
+        this.atr = input.atr;
+        this.take = input.take;
+        // this.take = input.take != null ? evaluate(input.take) : input.take;
+        if (typeof this.take === 'string' || this.take instanceof String) {
+            if (!this.take.endsWith('%')) {
+                this.take = evaluate(this.take as any);
+            }
+        }
         this.pattern = defaults(input.pattern, 'Consolidation');
     }
 
@@ -98,7 +104,7 @@ class Risk {
     public profit: any;
     public take: any;
 
-    constructor(assets:any, setup:any, trades:any, layer:number) {
+    constructor(assets: any, setup: any, trades: any, layer: number) {
         assets = evaluate(assets);
         this.setup = setup
         const percentageStopLoss = (typeof setup.stop === 'string' || setup.stop instanceof String) && setup.stop.endsWith('%');
@@ -134,9 +140,15 @@ class Risk {
         this.profit = Math.min(this.risk * 3, 24);
         this.profit = Math.max(10, this.profit);
         this.take = setup.pivot * (100 + this.profit).percent();
+        const percentageTake = setup.take != null && (typeof setup.take === 'string' || setup.take instanceof String) && setup.take.endsWith('%');
         if (setup.take != null) {
-            this.take = setup.take;
-            this.profit = (this.take / setup.pivot - 1) * 100;
+            if (percentageTake) {
+                this.profit = parseFloat(setup.take.slice(0, -1));
+                this.take = setup.pivot * (100 + this.profit).percent();
+            } else {
+                this.take = setup.take;
+                this.profit = (this.take / setup.pivot - 1) * 100;
+            }
         }
     }
 }
@@ -149,13 +161,13 @@ class Pyramid {
     public position: any;
     public price: any;
     public limit: any;
-    public share: any;
+    public share: number;
     public invested: any;
     public stop: any;
     public take: any;
     public protect: any;
 
-    constructor(builder:PyramidBuilder, number:number, trade:any) {
+    constructor(builder: PyramidBuilder, number: number, trade: any) {
         this.builder = builder;
         this.number = number;
         this.primary = null;
@@ -168,6 +180,7 @@ class Pyramid {
         }
         this.price = (100 + offset).percent() * builder.setup.pivot;
         this.limit = Math.min(this.price + 0.5, (100 + offset + 0.2).percent() * builder.setup.pivot);
+        this.limit = this.price;
         this.share = Math.round(this.position / this.limit);
         if (trade != null && trade.indexOf('@') !== -1) {
             let parts = trade.split('@', 2);
@@ -182,8 +195,15 @@ class Pyramid {
         } else {
             this.stop = this.price * (100 - builder.risk.risk).percent();
         }
+        if (this.number > 0) {
+            this.stop = builder.setup.pivot * (100 - 0.5).percent();
+        }
         this.take = builder.risk.take;
 
+    }
+
+    _close_range_1m() {
+        return "(close-Lowest(low, 390))/(Highest(high, 390)-Lowest(low, 390))"
     }
 
     build() {
@@ -197,7 +217,7 @@ class Pyramid {
             }
             this.limit = this.builder.setup.pivot * (100 + upper).percent();
             primary.trigger = new LimitOrder(
-                symbol, this.builder.setup.open(), this.share, 'LAST+.10');
+                symbol, this.builder.setup.open(), this.share, 'LAST+.00');
             primary.trigger.submit = `${symbol} STUDY '{tho=true};Between(SecondsTillTime(1000), ${-60 * 60 * 6 + 60 * 30}, 0) and Between(close, ${this.price.financial()}, ${this.limit.financial()}) and (Average(close, 10) > ExpAverage(close, 21) and ExpAverage(close, 21) > Average(close, 50) and low >= Average(close, 10));1m' IS TRUE`;
         } else {
             primary.trigger = new StopLimitOrder(
@@ -210,6 +230,7 @@ class Pyramid {
             if (this.limit === this.price) {
                 primary.trigger.submit = null;
             }
+            primary.trigger.submit = null;
         }
 
         primary.group.push(new LimitOrder(symbol, this.builder.setup.close(), this.share, this.take));
@@ -217,6 +238,7 @@ class Pyramid {
 
         // round-trip sell rule
         this.protect = this.price * (100 + 10).percent();
+        this.protect = Math.min(this.price + (this.price - this.stop) * 2, this.protect);
         let cond = `${symbol} MARK AT OR ${this.builder.setup.long ? "ABOVE" : "BELOW"} ${this.protect.financial()}`;
 
         primary.group.push(new StopOrder(symbol, this.builder.setup.close(), this.share, this.limit));
@@ -230,10 +252,16 @@ class Pyramid {
             let avg = parseInt(this.builder.config.volume.split(',').join(''));
             let volume = new MarketOrder(symbol, this.builder.setup.close(), this.share);
             // sell near market close if volume not high enough on pivot day
-            volume.submit = `${symbol} STUDY '{tho=true};Between(SecondsTillTime(1600),0,${60 * 3}) and Sum(volume, 390) < ${avg};1m' IS TRUE`;
+            volume.submit = `${symbol} STUDY '{tho=true};Between(SecondsTillTime(1600),0,${60 * 3}) and Sum(volume, 390) < ${avg} and (${this._close_range_1m()}<0.45);1m' IS TRUE`;
             volume.tif = "GTC";
             primary.group.push(volume);
         }
+
+        // sell near market close if low close range and pretty near to stop to avoid heart by gap down tomorrow
+        let reversal = new MarketOrder(symbol, this.builder.setup.close(), this.share);
+        reversal.submit = `${symbol} STUDY '{tho=true};Between(SecondsTillTime(1600),0,${60 * 3}) and (${this._close_range_1m()}<0.4) and close <= ${(this.stop*1.01).financial()};1m' IS TRUE`;
+        reversal.tif = "GTC";
+        primary.group.push(reversal);
     }
 
     exit() {
@@ -251,7 +279,7 @@ class Pyramid {
         }
     }
 
-    exit_base():MultiOCO {
+    exit_base(): MultiOCO {
         let symbol = this.builder.setup.symbol;
         let multi = new MultiOCO();
         let shares = [this.share.half(), this.share.left()];
@@ -264,12 +292,16 @@ class Pyramid {
             oco.group.push(new StopOrder(symbol, this.builder.setup.close(), shares[i], this.stop));
             oco.group.slice(-1)[0].cancel = this.primary.group[1].submit;
             // oco.group.slice(-1)[0].loss = (this.stop - this.limit) * shares[i] * (this.builder.setup.long ? -1 : 1);
+            let reversal = new MarketOrder(symbol, this.builder.setup.close(), shares[i]);
+            reversal.submit = `${symbol} STUDY '{tho=true};Between(SecondsTillTime(1600),0,${60 * 3}) and (${this._close_range_1m()}<0.4) and close <= ${(this.stop*1.01).financial()};1m' IS TRUE`;
+            reversal.tif = "GTC";
+            oco.group.push(reversal);
             multi.orders.push(oco);
         }
         return multi;
     }
 
-    exit_pivot(params:any, base:MultiOCO):MultiOCO {
+    exit_pivot(params: any, base: MultiOCO): MultiOCO {
         let symbol = this.builder.setup.symbol;
         // let multi = new MultiOCO();
         let low = defaults(params['low'], this.stop);
@@ -300,7 +332,7 @@ class Pyramid {
         }
         let shares = [this.share.half(), this.share.left()];
         // solve {a==(c*(h+l)-s*h-y*l)/(c*(h+l))}
-        let stops = [-((avg-1)*this.limit*this.share+stop*shares[0])/(shares[1]),stop]
+        let stops = [-((avg - 1) * this.limit * this.share + stop * shares[0]) / (shares[1]), stop]
         for (let i = 0; i < shares.length; ++i) {
             let oco = base.orders[i];
             oco.group[2] = new StopOrder(symbol, this.builder.setup.close(), shares[i], stops[i])
@@ -318,7 +350,7 @@ export class PyramidBuilder {
     public config: any;
     public exit: any;
 
-    constructor(style:any, setup:any, risk:any, config:any, exit:any) {
+    constructor(style: any, setup: any, risk: any, config: any, exit: any) {
         this.style = style
         this.setup = setup
         this.risk = risk
@@ -342,7 +374,7 @@ export class PyramidBuilder {
     }
 }
 
-export function building(params:any) {
+export function building(params: any) {
     let setup = new Setup(params.build.setup);
     setup.init();
     let risk = new Risk(params['assets'], setup, params.build['pyramid']['trades'], params.build['pyramid']['count']);
@@ -350,7 +382,22 @@ export function building(params:any) {
     return builder.build();
 }
 
-export function riding(builder:PyramidBuilder, params:any) {
+export function checking(pyramids: Array<Pyramid>) {
+    let message = "";
+    let shares = [] as number[];
+    for (let i = 0; i < pyramids.length; ++i) {
+        let pyramid = pyramids[i];
+        let share = pyramid.primary.trigger.share;
+        if (shares.length > 0 && share > shares[shares.length - 1]) {
+            message = "Follow through buys not in pyramid";
+            break;
+        }
+        shares.push(share);
+    }
+    return message;
+}
+
+export function riding(builder: PyramidBuilder, params: any) {
     let strategies = new Map();
     if (builder.config['trades'] != null) {
         let trades = builder.config['trades'].map((x: string) => x.split('@', 2));

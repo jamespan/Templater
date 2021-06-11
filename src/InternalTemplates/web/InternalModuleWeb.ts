@@ -1,3 +1,4 @@
+import { TemplaterError } from "Error";
 import { InternalModule } from "../InternalModule";
 
 export class InternalModuleWeb extends InternalModule {
@@ -6,7 +7,7 @@ export class InternalModuleWeb extends InternalModule {
     async createStaticTemplates() {
         this.static_templates.set("daily_quote", this.generate_daily_quote());
         this.static_templates.set("random_picture", this.generate_random_picture());
-        this.static_templates.set("get_request", this.generate_get_request());
+        //this.static_templates.set("get_request", this.generate_get_request());
     }
     
     async updateTemplates() {}
@@ -14,7 +15,7 @@ export class InternalModuleWeb extends InternalModule {
     async getRequest(url: string): Promise<Response> {
         let response = await fetch(url);
         if (!response.ok) {
-            throw new Error("Error performing GET request");
+            throw new TemplaterError("Error performing GET request");
         }
         return response;
     }

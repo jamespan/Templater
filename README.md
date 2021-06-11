@@ -20,6 +20,12 @@ It can be dangerous to execute arbitrary JavaScript code or system commands from
 
 Because [Obsidian](https://obsidian.md/) is an offline application, it can be dangerous **only if** you copy-paste and blindly use a code snippet / command / template from an untrusted source.
 
+## Template Showcase ? Questions ? Ideas ? Help ? 
+
+Go to the [discussion](https://github.com/SilentVoid13/Templater/discussions) tab to ask and find this kind of things.
+
+Don't be shy and share your templates created using [Templater](https://github.com/SilentVoid13/Templater) in the [Template Showcase](https://github.com/SilentVoid13/Templater/discussions/categories/templates-showcase) category. Use [gists](https://gist.github.com/) to share the template file. I'm curious of what the community has come up with, and I'm sure I'm not the only one.
+
 ## Utilities
 
 A list of useful tools to use along [Templater](https://github.com/SilentVoid13/Templater): 
@@ -30,7 +36,10 @@ A list of useful tools to use along [Templater](https://github.com/SilentVoid13/
 
 A list of useful resources about [Templater](https://github.com/SilentVoid13/Templater):
 
-- @tallguyjenks video: https://youtu.be/2234DXKbNgM
+- @GitMurf quick demo `How to setup and run your first Templater JS script`: https://github.com/SilentVoid13/Templater/discussions/187
+- @shabegom `How To Use Templater JS Scripts`: https://publish.obsidian.md/shabegom/Publish/How+To+Use+Templater++JS+Scripts
+- @chhoumann Templates showcase: https://github.com/chhoumann/Templater_Templates
+- @tallguyjenks video: https://youtu.be/2234DXKbNgM?t=1944
 
 ## Alternatives
 
@@ -53,4 +62,4 @@ Go [here](https://silentvoid13.github.io/Templater/docs/internal-variables-funct
 
 ## Support
 
-If you want to support me and my work, you can donate me a little something by clicking [**here**](https://www.paypal.com/donate?hosted_button_id=U2SRGAFYXT32Q).
+If you want to support me and my work, you can [sponsor me on Github](https://github.com/sponsors/SilentVoid13) (preferred method) or donate something on [**Paypal**](https://www.paypal.com/donate?hosted_button_id=U2SRGAFYXT32Q).

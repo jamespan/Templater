@@ -1,30 +1,23 @@
-import { InternalModuleDate } from "InternalTemplates/date/InternalModuleDate";
-import { TFile } from "obsidian";
+import TestTemplaterPlugin from "../../main.test";
 
-/*
-const mock_file: TFile = {
-    vault: null,
-    path: "/mock/path",
-    parent: null,
-    stat: null, 
-    name: "Mock file", 
-    basename: "Mock file", 
-    extension: "md"
-};
+export function InternalModuleDateTests(t: TestTemplaterPlugin) {
+    t.test("tp.date.now", async () => {
+        // TODO
 
-const date = new InternalModuleDate(null, mock_file);
+    });
 
-test("tp.date.now", () => {
-    let now = date.generate_now();
+    t.test("tp.date.tomorrow", async () => {
+        // TODO
 
-    expect(now()).toBe(null);
-});
+    })
 
-test("tp.date.tomorrow", () => {
-    let tomorrow = date.generate_tomorrow();
+    t.test("tp.date.yesterday", async () => {
+        // TODO
 
-    let tomorrow_date = null;
+    });
 
-    expect(tomorrow()).toBe(tomorrow_date);
-});
-*/
+    t.test("tp.date.weekday", async () => {
+        // TODO
+
+    });
+}

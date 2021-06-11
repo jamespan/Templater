@@ -8,7 +8,7 @@ This module contains every internal variable / function related to dates.
 
 :::tip
 
-Function documentation is using a specific syntax. More informations [here](../../syntax#function-documentation-syntax)
+Function documentation is using a specific syntax. More informations [here](../../syntax.md#function-documentation-syntax)
 
 :::
 
@@ -18,6 +18,14 @@ Function documentation is using a specific syntax. More informations [here](../.
 | `tp.date.tomorrow(format: string = "YYYY-MM-DD")`            | - `format`: Format for the date, refer to [format reference](https://momentjs.com/docs/#/displaying/format/) | Retrieves tomorrow's date      | `2020-11-07`   |
 | `tp.date.weekday(format: string = "YYYY-MM-DD", weekday: number, reference?: string, reference_format?: string)` | - `format`: Format for the date, refer to [format reference](https://momentjs.com/docs/#/displaying/format/)<br />- `weekday`: Week day number. If the locale assigns Monday as the first day of the week, `0` will be Monday, `-7` will be last week's day.<br />- `reference`: The date referential, e.g. set this to the note's title<br />- `reference_format`: The date reference format. | Retrieves the week's day date. | `2021-04-06`   |
 | `tp.date.yesterday(format: string = "YYYY-MM-DD")`           | - `format`: Format for the date, refer to [format reference](https://momentjs.com/docs/#/displaying/format/) | Retrieves yesterday's date     | `2020-11-07`   |
+
+:::tip
+
+Templater gives you access to the `moment` object, with all of its functionalities.
+
+More informations on moment.js [here](https://momentjs.com/docs/#/displaying/)
+
+:::
 
 ## Examples
 
