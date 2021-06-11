@@ -180,6 +180,7 @@ class Pyramid {
         }
         this.price = (100 + offset).percent() * builder.setup.pivot;
         this.limit = Math.min(this.price + 0.5, (100 + offset + 0.2).percent() * builder.setup.pivot);
+        this.limit = this.price;
         this.share = Math.round(this.position / this.limit);
         if (trade != null && trade.indexOf('@') !== -1) {
             let parts = trade.split('@', 2);
@@ -225,6 +226,7 @@ class Pyramid {
             if (this.limit === this.price) {
                 primary.trigger.submit = null;
             }
+            primary.trigger.submit = null;
         }
 
         primary.group.push(new LimitOrder(symbol, this.builder.setup.close(), this.share, this.take));
@@ -246,7 +248,7 @@ class Pyramid {
             let avg = parseInt(this.builder.config.volume.split(',').join(''));
             let volume = new MarketOrder(symbol, this.builder.setup.close(), this.share);
             // sell near market close if volume not high enough on pivot day
-            volume.submit = `${symbol} STUDY '{tho=true};Between(SecondsTillTime(1600),0,${60 * 3}) and Sum(volume, 390) < ${avg};1m' IS TRUE`;
+            volume.submit = `${symbol} STUDY '{tho=true};Between(SecondsTillTime(1600),0,${60 * 3}) and Sum(volume, 390) < ${avg} and ((close-Lowest(low, 390))/(Highest(high, 390)-Lowest(low, 390))<0.45);1m' IS TRUE`;
             volume.tif = "GTC";
             primary.group.push(volume);
         }
