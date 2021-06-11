@@ -202,6 +202,10 @@ class Pyramid {
 
     }
 
+    _close_range_1m() {
+        return "(close-Lowest(low, 390))/(Highest(high, 390)-Lowest(low, 390))"
+    }
+
     build() {
         let primary = new OrderOTOCO();
         this.primary = primary;
@@ -248,10 +252,16 @@ class Pyramid {
             let avg = parseInt(this.builder.config.volume.split(',').join(''));
             let volume = new MarketOrder(symbol, this.builder.setup.close(), this.share);
             // sell near market close if volume not high enough on pivot day
-            volume.submit = `${symbol} STUDY '{tho=true};Between(SecondsTillTime(1600),0,${60 * 3}) and Sum(volume, 390) < ${avg} and ((close-Lowest(low, 390))/(Highest(high, 390)-Lowest(low, 390))<0.45);1m' IS TRUE`;
+            volume.submit = `${symbol} STUDY '{tho=true};Between(SecondsTillTime(1600),0,${60 * 3}) and Sum(volume, 390) < ${avg} and (${this._close_range_1m()}<0.45);1m' IS TRUE`;
             volume.tif = "GTC";
             primary.group.push(volume);
         }
+
+        // sell near market close if low close range and pretty near to stop to avoid heart by gap down tomorrow
+        let reversal = new MarketOrder(symbol, this.builder.setup.close(), this.share);
+        reversal.submit = `${symbol} STUDY '{tho=true};Between(SecondsTillTime(1600),0,${60 * 3}) and (${this._close_range_1m()}<0.4) and close <= ${(this.stop*1.01).financial()};1m' IS TRUE`;
+        reversal.tif = "GTC";
+        primary.group.push(reversal);
     }
 
     exit() {
@@ -282,6 +292,10 @@ class Pyramid {
             oco.group.push(new StopOrder(symbol, this.builder.setup.close(), shares[i], this.stop));
             oco.group.slice(-1)[0].cancel = this.primary.group[1].submit;
             // oco.group.slice(-1)[0].loss = (this.stop - this.limit) * shares[i] * (this.builder.setup.long ? -1 : 1);
+            let reversal = new MarketOrder(symbol, this.builder.setup.close(), shares[i]);
+            reversal.submit = `${symbol} STUDY '{tho=true};Between(SecondsTillTime(1600),0,${60 * 3}) and (${this._close_range_1m()}<0.4) and close <= ${(this.stop*1.01).financial()};1m' IS TRUE`;
+            reversal.tif = "GTC";
+            oco.group.push(reversal);
             multi.orders.push(oco);
         }
         return multi;
