@@ -180,7 +180,7 @@ class Pyramid {
         }
         this.price = (100 + offset).percent() * builder.setup.pivot;
         this.limit = Math.min(this.price + 0.5, (100 + offset + 0.2).percent() * builder.setup.pivot);
-        this.limit = this.price;
+        // this.limit = this.price;
         this.share = Math.round(this.position / this.limit);
         if (trade != null && trade.indexOf('@') !== -1) {
             let parts = trade.split('@', 2);
@@ -213,12 +213,12 @@ class Pyramid {
         if (this.builder.config['dynamic'] && this.limit !== this.price) {
             let upper = [1.25, 3.25, 5][this.number];
             if (this.builder.config.count === 1) {
-                upper = 2.5;
+                upper = 2;
             }
             this.limit = this.builder.setup.pivot * (100 + upper).percent();
             primary.trigger = new LimitOrder(
                 symbol, this.builder.setup.open(), this.share, 'LAST+.00');
-            primary.trigger.submit = `${symbol} STUDY '{tho=true};Between(SecondsTillTime(1000), ${-60 * 60 * 6 + 60 * 30}, 0) and Between(close, ${this.price.financial()}, ${this.limit.financial()}) and (Average(close, 10) > ExpAverage(close, 21) and ExpAverage(close, 21) > Average(close, 50) and low >= Average(close, 10));1m' IS TRUE`;
+            primary.trigger.submit = `${symbol} STUDY '{tho=true};Between(SecondsTillTime(1000), ${-60 * 60 * 6 + 60 * 30}, 0) and Between(close, ${this.price.financial()}, ${this.limit.financial()}) and (Average(close, 10) > ExpAverage(close, 21) and ExpAverage(close, 21) > Average(close, 50) and Average(close, 50) > Average(close[5], 50) and low >= Average(close, 10));1m' IS TRUE`;
         } else {
             primary.trigger = new StopLimitOrder(
                 symbol, this.builder.setup.open(), this.share, this.price, this.limit);
@@ -248,6 +248,11 @@ class Pyramid {
         primary.group.slice(-1)[0].cancel = cond;
         primary.group.slice(-1)[0].loss = (this.stop - this.limit) * this.share * (this.builder.setup.long ? -1 : 1);
 
+        // sell near market close if low close range and pretty near to stop to avoid heart by gap down tomorrow
+        let reversal = new MarketOrder(symbol, this.builder.setup.close(), this.share);
+        reversal.submit = `${symbol} STUDY '{tho=true};Between(SecondsTillTime(1600),0,${60 * 3}) and (${this._close_range_1m()}<0.4) and close <= ${(this.stop*1.01).financial()};1m' IS TRUE`;
+        reversal.tif = "GTC";
+        primary.group.push(reversal);
         if (this.builder.config.volume != null && this.builder.config.trades == null) {
             let avg = parseInt(this.builder.config.volume.split(',').join(''));
             let volume = new MarketOrder(symbol, this.builder.setup.close(), this.share);
@@ -256,12 +261,6 @@ class Pyramid {
             volume.tif = "GTC";
             primary.group.push(volume);
         }
-
-        // sell near market close if low close range and pretty near to stop to avoid heart by gap down tomorrow
-        let reversal = new MarketOrder(symbol, this.builder.setup.close(), this.share);
-        reversal.submit = `${symbol} STUDY '{tho=true};Between(SecondsTillTime(1600),0,${60 * 3}) and (${this._close_range_1m()}<0.4) and close <= ${(this.stop*1.01).financial()};1m' IS TRUE`;
-        reversal.tif = "GTC";
-        primary.group.push(reversal);
     }
 
     exit() {
