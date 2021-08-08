@@ -68,9 +68,9 @@ export class MarketOrder extends ConditionalOrder {
 export class StopOrder extends ConditionalOrder {
     public stop: any;
 
-    constructor(symbol: string, direction: string, share: number, stop: number) {
+    constructor(symbol: string, direction: string, share: number, stop: number|string) {
         super(symbol, direction, share);
-        this.stop = financial(stop);
+        this.stop = typeof stop === 'number' ? financial(stop) : stop;
     }
 
     toString() {

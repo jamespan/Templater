@@ -85,7 +85,7 @@ class Setup {
 
     init() {
         this.long = this._direction.toUpperCase() !== "SHORT";
-        this.actionable = new Range(this.pivot, this.pivot * (100 + 5).percent());
+        this.actionable = new Range(this.pivot, this.pivot * (100 + 5 * (this.long ? 1 : -1)).percent());
     }
 
     open() {
@@ -110,7 +110,7 @@ class Risk {
         const percentageStopLoss = (typeof setup.stop === 'string' || setup.stop instanceof String) && setup.stop.endsWith('%');
         if (percentageStopLoss) {
             this.risk = parseFloat(setup.stop.slice(0, -1));
-            setup.stop = setup.pivot * (100 - this.risk).percent()
+            setup.stop = setup.pivot * (100 - this.risk * (this.setup.long ? 1: -1)).percent()
             this.position = assets / 10;
         } else {
             let x = setup.pivot
@@ -139,12 +139,12 @@ class Risk {
         }
         this.profit = Math.min(this.risk * 3, 24);
         this.profit = Math.max(10, this.profit);
-        this.take = setup.pivot * (100 + this.profit).percent();
+        this.take = setup.pivot * (100 + this.profit * (this.setup.long ? 1: -1)).percent();
         const percentageTake = setup.take != null && (typeof setup.take === 'string' || setup.take instanceof String) && setup.take.endsWith('%');
         if (setup.take != null) {
             if (percentageTake) {
                 this.profit = parseFloat(setup.take.slice(0, -1));
-                this.take = setup.pivot * (100 + this.profit).percent();
+                this.take = setup.pivot * (100 + this.profit * (this.setup.long ? 1: -1)).percent();
             } else {
                 this.take = setup.take;
                 this.profit = (this.take / setup.pivot - 1) * 100;
@@ -181,6 +181,9 @@ class Pyramid {
         this.price = (100 + offset).percent() * builder.setup.pivot;
         this.limit = Math.min(this.price + 0.5, (100 + offset + 0.2).percent() * builder.setup.pivot);
         // this.limit = this.price;
+        if (!this.builder.setup.long) {
+            this.limit = this.price;
+        }
         this.share = Math.round(this.position / this.limit);
         if (trade != null && trade.indexOf('@') !== -1) {
             let parts = trade.split('@', 2);
@@ -193,7 +196,7 @@ class Pyramid {
         if ('swing' === builder.style) {
             this.stop = builder.setup.stop;
         } else {
-            this.stop = this.price * (100 - builder.risk.risk).percent();
+            this.stop = this.price * (100 - builder.risk.risk * (builder.setup.long ? 1: -1)).percent();
         }
         if (this.number > 0) {
             this.stop = builder.setup.pivot * (100 - 0.5).percent();
@@ -213,7 +216,7 @@ class Pyramid {
         if (this.builder.config['dynamic'] && this.limit !== this.price) {
             let upper = [1.25, 3.25, 5][this.number];
             if (this.builder.config.count === 1) {
-                upper = 2;
+                upper = 4.5;
             }
             this.limit = this.builder.setup.pivot * (100 + upper).percent();
             primary.trigger = new LimitOrder(
@@ -238,17 +241,25 @@ class Pyramid {
         }
 
         primary.group.push(new LimitOrder(symbol, this.builder.setup.close(), this.share, this.take));
-        primary.group.slice(-1)[0].profit = (this.take - this.limit) * this.share;
+        primary.group.slice(-1)[0].profit = (this.take - this.limit) * this.share * (this.builder.setup.long ? 1 : -1);
 
         // round-trip sell rule
-        this.protect = this.price * (100 + 10).percent();
-        this.protect = Math.min(this.price + (this.price - this.stop) * 2, this.protect);
+        this.protect = this.price * (100 + 10 * (this.builder.setup.long ? 1: -1)).percent();
+        if (this.builder.setup.long) {
+            this.protect = Math.min(this.price + (this.price - this.stop) * 2, this.protect);
+        } else {
+            this.protect = Math.max(this.price - (this.price - this.stop) * 2, this.protect);
+        }
         let cond = `${symbol} MARK AT OR ${this.builder.setup.long ? "ABOVE" : "BELOW"} ${this.protect.financial()}`;
 
-        primary.group.push(new StopOrder(symbol, this.builder.setup.close(), this.share, this.limit));
+        primary.group.push(new StopOrder(symbol, this.builder.setup.close(), this.share, "TRG+0.00%"));
         primary.group.slice(-1)[0].submit = cond;
 
-        primary.group.push(new StopOrder(symbol, this.builder.setup.close(), this.share, this.stop));
+        if (this.builder.config.count === 1) {
+            primary.group.push(new StopOrder(symbol, this.builder.setup.close(), this.share, `TRG${this.builder.setup.long ? "-" : "+"}${this.builder.risk.risk.financial()}%`));
+        } else {
+            primary.group.push(new StopOrder(symbol, this.builder.setup.close(), this.share, this.stop));
+        }
         primary.group.slice(-1)[0].cancel = cond;
         primary.group.slice(-1)[0].loss = (this.stop - this.limit) * this.share * (this.builder.setup.long ? -1 : 1);
 
@@ -256,8 +267,8 @@ class Pyramid {
         let reversal = new MarketOrder(symbol, this.builder.setup.close(), this.share);
         reversal.submit = `${symbol} STUDY '{tho=true};Between(SecondsTillTime(1600),0,${60 * 3}) and (${this._close_range_1m()}<0.4) and close <= ${(this.stop*1.01).financial()};1m' IS TRUE`;
         reversal.tif = "GTC";
-        primary.group.push(reversal);
-        if (this.builder.config.volume != null && this.builder.config.trades == null) {
+        // primary.group.push(reversal);
+        if (this.builder.config.volume != null && this.builder.config.trades == null && this.builder.setup.long) {
             let avg = parseInt(this.builder.config.volume.split(',').join(''));
             let volume = new MarketOrder(symbol, this.builder.setup.close(), this.share);
             // sell near market close if volume not high enough on pivot day
