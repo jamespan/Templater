@@ -252,10 +252,10 @@ class Pyramid {
         }
         let cond = `${symbol} MARK AT OR ${this.builder.setup.long ? "ABOVE" : "BELOW"} ${this.protect.financial()}`;
 
-        primary.group.push(new StopOrder(symbol, this.builder.setup.close(), this.share, "TRG+0.00%"));
+        primary.group.push(new StopOrder(symbol, this.builder.setup.close(), this.share, this.limit !== this.price ? "TRG+0.00%": this.limit));
         primary.group.slice(-1)[0].submit = cond;
 
-        if (this.builder.config.count === 1) {
+        if (this.builder.config.count === 1 && this.limit !== this.price) {
             primary.group.push(new StopOrder(symbol, this.builder.setup.close(), this.share, `TRG${this.builder.setup.long ? "-" : "+"}${this.builder.risk.risk.financial()}%`));
         } else {
             primary.group.push(new StopOrder(symbol, this.builder.setup.close(), this.share, this.stop));
