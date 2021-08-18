@@ -229,6 +229,9 @@ class Pyramid {
         } else {
             primary.trigger = new StopLimitOrder(
                 symbol, this.builder.setup.open(), this.share, this.price, this.limit);
+            if (!this.builder.setup.long) {
+                (primary.trigger as StopLimitOrder).stopType = "MARK";
+            }
             let pullback = this.price * (100 - 2).percent();
             if (this.builder.setup.atr != null) {
                 pullback = this.price - this.builder.setup.atr / 2;
@@ -248,7 +251,7 @@ class Pyramid {
         if (this.builder.setup.long) {
             this.protect = Math.min(this.price + (this.price - this.stop) * 2, this.protect);
         } else {
-            this.protect = Math.max(this.price - (this.price - this.stop) * 2, this.protect);
+            this.protect = Math.max(this.price + (this.price - this.stop) * 2, this.protect);
         }
         let cond = `${symbol} MARK AT OR ${this.builder.setup.long ? "ABOVE" : "BELOW"} ${this.protect.financial()}`;
 
