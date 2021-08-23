@@ -21,6 +21,8 @@ declare global {
         half(): number
 
         left(): number
+
+        one_third(): number
     }
 }
 
@@ -38,6 +40,10 @@ Number.prototype.half = function () {
 
 Number.prototype.left = function () {
     return this - this.half();
+};
+
+Number.prototype.one_third = function () {
+    return Math.round(this / 3);
 };
 
 
@@ -453,6 +459,13 @@ export function riding(builder: PyramidBuilder, params: any) {
                 oco.group.push(new TrailStopOrder(symbol, builder.setup.close(), shares.half(), builder.setup.long ? 'MARK-10.00%' : 'MARK+10.00%'));
                 multi.orders.push(oco);
                 shares = shares.left();
+            } else if (config['part'] === 'third') {
+                let third = shares.one_third();
+                let oco = new OrderOCO();
+                oco.group.push(new StopOrder(symbol, builder.setup.close(), shares - third, stop));
+                oco.group.push(new TrailStopOrder(symbol, builder.setup.close(), shares - third, builder.setup.long ? 'MARK-10.00%' : 'MARK+10.00%'));
+                multi.orders.push(oco);
+                shares = third;
             }
             let oco = new OrderOCO();
             let target = evaluate(config.target);
