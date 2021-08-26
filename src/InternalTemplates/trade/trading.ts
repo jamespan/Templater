@@ -226,7 +226,7 @@ class Pyramid {
             }
             this.limit = this.builder.setup.pivot * (100 + upper).percent();
             primary.trigger = new LimitOrder(
-                symbol, this.builder.setup.open(), this.share, 'LAST+.00');
+                symbol, this.builder.setup.open(), this.share, 'LAST+.50%');
             primary.trigger.submit = `${symbol} STUDY '{tho=true};Between(SecondsTillTime(1000), ${-60 * 60 * 6 + 60 * 30}, 0) and Between(close, ${this.price.financial()}, ${this.limit.financial()}) and (Average(close, 10) > ExpAverage(close, 21) and ExpAverage(close, 21) > Average(close, 50) and Average(close, 50) > Average(close[5], 50) and low >= Average(close, 10));1m' IS TRUE`;
             if (this.builder.config['estimate'] && this.builder.config.volume != null) {
                 let avg = parseInt(this.builder.config.volume.split(',').join(''));
@@ -452,23 +452,24 @@ export function riding(builder: PyramidBuilder, params: any) {
             strategies.set(key, multi);
 
             let shares = config.shares;
+            let target = evaluate(config.target);
             let stop = config['support'];
+            let drawback = Math.abs(((target / stop) - 1) / 2 * 100).financial();
             if (config['part'] === 'half') {
                 let oco = new OrderOCO();
                 oco.group.push(new StopOrder(symbol, builder.setup.close(), shares.half(), stop));
-                oco.group.push(new TrailStopOrder(symbol, builder.setup.close(), shares.half(), builder.setup.long ? 'MARK-10.00%' : 'MARK+10.00%'));
+                oco.group.push(new TrailStopOrder(symbol, builder.setup.close(), shares.half(), builder.setup.long ? `MARK-${drawback}%` : `MARK+${drawback}%`));
                 multi.orders.push(oco);
                 shares = shares.left();
             } else if (config['part'] === 'third') {
                 let third = shares.one_third();
                 let oco = new OrderOCO();
                 oco.group.push(new StopOrder(symbol, builder.setup.close(), shares - third, stop));
-                oco.group.push(new TrailStopOrder(symbol, builder.setup.close(), shares - third, builder.setup.long ? 'MARK-10.00%' : 'MARK+10.00%'));
+                oco.group.push(new TrailStopOrder(symbol, builder.setup.close(), shares - third, builder.setup.long ? 'MARK-${drawback}%' : 'MARK+${drawback}%'));
                 multi.orders.push(oco);
                 shares = third;
             }
             let oco = new OrderOCO();
-            let target = evaluate(config.target);
             oco.group.push(new LimitOrder(symbol, builder.setup.close(), shares, target));
             oco.group.push(new StopOrder(symbol, builder.setup.close(), shares, stop));
             let reversal = new MarketOrder(symbol, builder.setup.close(), shares);
