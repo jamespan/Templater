@@ -465,7 +465,7 @@ export function riding(builder: PyramidBuilder, params: any) {
                 let third = shares.one_third();
                 let oco = new OrderOCO();
                 oco.group.push(new StopOrder(symbol, builder.setup.close(), shares - third, stop));
-                oco.group.push(new TrailStopOrder(symbol, builder.setup.close(), shares - third, builder.setup.long ? 'MARK-${drawback}%' : 'MARK+${drawback}%'));
+                oco.group.push(new TrailStopOrder(symbol, builder.setup.close(), shares - third, builder.setup.long ? `MARK-${drawback}%` : `MARK+${drawback}%`));
                 multi.orders.push(oco);
                 shares = third;
             }
