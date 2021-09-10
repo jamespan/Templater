@@ -314,9 +314,12 @@ class Pyramid {
             oco.group.slice(-1)[0].submit = this.primary.group[1].submit;
             oco.group.push(new StopOrder(symbol, this.builder.setup.close(), shares[i], this.stop));
             oco.group.slice(-1)[0].cancel = this.primary.group[1].submit;
-            // oco.group.slice(-1)[0].loss = (this.stop - this.limit) * shares[i] * (this.builder.setup.long ? -1 : 1);
+            oco.group.slice(-1)[0].loss = (this.stop - this.limit) * shares[i] * (this.builder.setup.long ? -1 : 1);
             let reversal = new MarketOrder(symbol, this.builder.setup.close(), shares[i]);
-            reversal.submit = `${symbol} STUDY '{tho=true};Between(SecondsTillTime(1600),0,${60 * 3}) and (${this._close_range_1m()}<0.4) and close <= ${(this.stop*1.01).financial()};1m' IS TRUE`;
+            let conditions = close_range_condition.concat([
+                `plot Cond = Between(SecondsTillTime(1600),0,${60 * 1}) and CloseRange < 0.4 and close <= ${(this.stop*1.01).financial()};`,
+            ]);
+            reversal.submit = `${symbol} STUDY '{tho=true};${conditions.map((x)=>x.replace(";", "|$")).join("")};1m' IS TRUE`;
             reversal.tif = "GTC";
             oco.group.push(reversal);
             multi.orders.push(oco);
@@ -420,6 +423,12 @@ export function checking(pyramids: Array<Pyramid>) {
     return message;
 }
 
+let close_range_condition = [
+    "def FastHigh = Max((fold i = 0 to 40 with h = high do if GetValue(GetYYYYMMDD(),i*10) == GetYYYYMMDD() and GetValue(SecondsTillTime(930),i*10)<=-600 then Max(h, GetValue(Highest(high, 10), i*10)) else h), (fold ii = 0 to 10 with hh = high do if ii <= ((-SecondsTillTime(930)/60)%10) then Max(hh, if ii == 0 then GetValue(high, (-SecondsTillTime(930)/60)-0) else if ii == 1 then GetValue(high, (-SecondsTillTime(930)/60)-1) else if ii == 2 then GetValue(high, (-SecondsTillTime(930)/60)-2) else if ii == 3 then GetValue(high, (-SecondsTillTime(930)/60)-3) else if ii == 4 then GetValue(high, (-SecondsTillTime(930)/60)-4) else if ii == 5 then GetValue(high, (-SecondsTillTime(930)/60)-5) else if ii == 6 then GetValue(high, (-SecondsTillTime(930)/60)-6) else if ii == 7 then GetValue(high, (-SecondsTillTime(930)/60)-7) else if ii == 8 then GetValue(high, (-SecondsTillTime(930)/60)-8) else if ii == 9 then GetValue(high, (-SecondsTillTime(930)/60)-9) else 0) else hh));",
+    "def FastLow = Min((fold j = 0 to 40 with l = low do if GetValue(GetYYYYMMDD(),j*10) == GetYYYYMMDD() and GetValue(SecondsTillTime(930),j*10)<=-600 then Min(l, GetValue(lowest(low, 10), j*10)) else l), (fold jj = 0 to 10 with ll = low do if jj <= ((-SecondsTillTime(930)/60)%10) then Min(ll, if jj == 0 then GetValue(low, (-SecondsTillTime(930)/60)-0) else if jj == 1 then GetValue(low, (-SecondsTillTime(930)/60)-1) else if jj == 2 then GetValue(low, (-SecondsTillTime(930)/60)-2) else if jj == 3 then GetValue(low, (-SecondsTillTime(930)/60)-3) else if jj == 4 then GetValue(low, (-SecondsTillTime(930)/60)-4) else if jj == 5 then GetValue(low, (-SecondsTillTime(930)/60)-5) else if jj == 6 then GetValue(low, (-SecondsTillTime(930)/60)-6) else if jj == 7 then GetValue(low, (-SecondsTillTime(930)/60)-7) else if jj == 8 then GetValue(low, (-SecondsTillTime(930)/60)-8) else if jj == 9 then GetValue(low, (-SecondsTillTime(930)/60)-9) else 0) else ll));",
+    "def CloseRange = (Close-FastLow)/(FastHigh-FastLow);",
+];
+
 export function riding(builder: PyramidBuilder, params: any) {
     let strategies = new Map();
     if (builder.config['trades'] != null) {
@@ -473,12 +482,9 @@ export function riding(builder: PyramidBuilder, params: any) {
             oco.group.push(new LimitOrder(symbol, builder.setup.close(), shares, target));
             oco.group.push(new StopOrder(symbol, builder.setup.close(), shares, stop));
             let reversal = new MarketOrder(symbol, builder.setup.close(), shares);
-            let conditions = [
-              "def FastHigh = Max((fold i = 0 to 40 with h = high do if GetValue(GetYYYYMMDD(),i*10) == GetYYYYMMDD() and GetValue(SecondsTillTime(930),i*10)<=-600 then Max(h, GetValue(Highest(high, 10), i*10)) else h), (fold ii = 0 to 10 with hh = high do if ii <= ((-SecondsTillTime(930)/60)%10) then Max(hh, if ii == 0 then GetValue(high, (-SecondsTillTime(930)/60)-0) else if ii == 1 then GetValue(high, (-SecondsTillTime(930)/60)-1) else if ii == 2 then GetValue(high, (-SecondsTillTime(930)/60)-2) else if ii == 3 then GetValue(high, (-SecondsTillTime(930)/60)-3) else if ii == 4 then GetValue(high, (-SecondsTillTime(930)/60)-4) else if ii == 5 then GetValue(high, (-SecondsTillTime(930)/60)-5) else if ii == 6 then GetValue(high, (-SecondsTillTime(930)/60)-6) else if ii == 7 then GetValue(high, (-SecondsTillTime(930)/60)-7) else if ii == 8 then GetValue(high, (-SecondsTillTime(930)/60)-8) else if ii == 9 then GetValue(high, (-SecondsTillTime(930)/60)-9) else 0) else hh));",
-              "def FastLow = Min((fold j = 0 to 40 with l = low do if GetValue(GetYYYYMMDD(),j*10) == GetYYYYMMDD() and GetValue(SecondsTillTime(930),j*10)<=-600 then Min(l, GetValue(lowest(low, 10), j*10)) else l), (fold jj = 0 to 10 with ll = low do if jj <= ((-SecondsTillTime(930)/60)%10) then Min(ll, if jj == 0 then GetValue(low, (-SecondsTillTime(930)/60)-0) else if jj == 1 then GetValue(low, (-SecondsTillTime(930)/60)-1) else if jj == 2 then GetValue(low, (-SecondsTillTime(930)/60)-2) else if jj == 3 then GetValue(low, (-SecondsTillTime(930)/60)-3) else if jj == 4 then GetValue(low, (-SecondsTillTime(930)/60)-4) else if jj == 5 then GetValue(low, (-SecondsTillTime(930)/60)-5) else if jj == 6 then GetValue(low, (-SecondsTillTime(930)/60)-6) else if jj == 7 then GetValue(low, (-SecondsTillTime(930)/60)-7) else if jj == 8 then GetValue(low, (-SecondsTillTime(930)/60)-8) else if jj == 9 then GetValue(low, (-SecondsTillTime(930)/60)-9) else 0) else ll));",
-              "def CloseRange = (Close-FastLow)/(FastHigh-FastLow);",
+            let conditions = close_range_condition.concat([
               `plot Cond = Between(SecondsTillTime(1600),0,${60 * 3}) and CloseRange < 0.6 and FastHigh >= ${(stop + (target-stop) * 0.6).financial()};`,
-            ];
+            ]);
             reversal.submit = `${symbol} STUDY '{tho=true};${conditions.map((x)=>x.replace(";", "|$")).join("")};1m' IS TRUE`;
             reversal.tif = "GTC";
             oco.group.push(reversal);
