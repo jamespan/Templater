@@ -68,6 +68,7 @@ class Setup {
     public long: any;
     public actionable: any;
     public scale: number;
+    public range: number;
 
     constructor(input: any) {
         this.symbol = input.symbol;
@@ -89,11 +90,12 @@ class Setup {
         }
         this.pattern = defaults(input.pattern, 'Consolidation');
         this.scale = defaults(input.scale, 1.0);
+        this.range = defaults(input.range, 5);
     }
 
     init() {
         this.long = this._direction.toUpperCase() !== "SHORT";
-        this.actionable = new Range(this.pivot, this.pivot * (100 + 5 * (this.long ? 1 : -1)).percent());
+        this.actionable = new Range(this.pivot, this.pivot * (100 + this.range * (this.long ? 1 : -1)).percent());
     }
 
     open() {
@@ -224,12 +226,11 @@ class Pyramid {
         if (this.builder.config['dynamic'] && this.limit !== this.price) {
             let upper = [1.25, 3.25, 5][this.number];
             if (this.builder.config.count === 1) {
-                upper = 4.5;
-                upper = this.builder.risk.risk / 2;
+                upper = this.builder.setup.range;
             }
             this.limit = this.builder.setup.pivot * (100 + upper).percent();
             primary.trigger = new LimitOrder(
-                symbol, this.builder.setup.open(), this.share, upper <= 1 ? this.limit: 'LAST+.50%');
+                symbol, this.builder.setup.open(), this.share, this.limit);
             let until = 935;
             primary.trigger.submit = `${symbol} STUDY '{tho=true};Between(SecondsTillTime(${until}), ${(-390 + until - 930 + 30) * 60}, 0) and Between(close, ${this.price.financial()}, ${this.limit.financial()}) and (Average(close, 10) > ExpAverage(close, 21) and ExpAverage(close, 21) > Average(close, 50) and Average(close, 50) > Average(close[5], 50) and low >= Average(close, 10));1m' IS TRUE`;
             if (this.builder.config['estimate'] && this.builder.config.volume != null) {
@@ -280,7 +281,7 @@ class Pyramid {
                 primary.group.slice(-1)[0].cancel = cond;
             }
         }
-        primary.group.slice(-1)[0].loss = (this.stop - this.limit) * this.share * (this.builder.setup.long ? -1 : 1);
+        primary.group.slice(-1)[0].loss = (this.limit * this.builder.risk.risk / 100) * this.share;
     }
 
     exit() {
