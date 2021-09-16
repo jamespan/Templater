@@ -116,7 +116,7 @@ class Risk {
         const percentageStopLoss = (typeof setup.stop === 'string' || setup.stop instanceof String) && setup.stop.endsWith('%');
         if (percentageStopLoss) {
             this.risk = parseFloat(setup.stop.slice(0, -1));
-            setup.stop = setup.pivot * (100 - this.risk * (this.setup.long ? 1: -1)).percent()
+            setup.stop = setup.pivot * (100 - this.risk * (this.setup.long ? 1 : -1)).percent()
             this.position = assets / 10;
         } else {
             let x = setup.pivot
@@ -145,12 +145,12 @@ class Risk {
         }
         this.profit = Math.min(this.risk * 3, 24);
         this.profit = Math.max(10, this.profit);
-        this.take = setup.pivot * (100 + this.profit * (this.setup.long ? 1: -1)).percent();
+        this.take = setup.pivot * (100 + this.profit * (this.setup.long ? 1 : -1)).percent();
         const percentageTake = setup.take != null && (typeof setup.take === 'string' || setup.take instanceof String) && setup.take.endsWith('%');
         if (setup.take != null) {
             if (percentageTake) {
                 this.profit = parseFloat(setup.take.slice(0, -1));
-                this.take = setup.pivot * (100 + this.profit * (this.setup.long ? 1: -1)).percent();
+                this.take = setup.pivot * (100 + this.profit * (this.setup.long ? 1 : -1)).percent();
             } else {
                 this.take = setup.take;
                 this.profit = (this.take / setup.pivot - 1) * 100;
@@ -202,7 +202,7 @@ class Pyramid {
         if ('swing' === builder.style) {
             this.stop = builder.setup.stop;
         } else {
-            this.stop = this.price * (100 - builder.risk.risk * (builder.setup.long ? 1: -1)).percent();
+            this.stop = this.price * (100 - builder.risk.risk * (builder.setup.long ? 1 : -1)).percent();
         }
         if (this.number > 0) {
             this.stop = builder.setup.pivot * (100 - 0.5).percent();
@@ -223,6 +223,7 @@ class Pyramid {
             let upper = [1.25, 3.25, 5][this.number];
             if (this.builder.config.count === 1) {
                 upper = 4.5;
+                upper = this.builder.risk.risk / 2;
             }
             this.limit = this.builder.setup.pivot * (100 + upper).percent();
             primary.trigger = new LimitOrder(
@@ -230,7 +231,7 @@ class Pyramid {
             primary.trigger.submit = `${symbol} STUDY '{tho=true};Between(SecondsTillTime(935), ${-60 * 60 * 6 + 60 * 30}, 0) and Between(close, ${this.price.financial()}, ${this.limit.financial()}) and (Average(close, 10) > ExpAverage(close, 21) and ExpAverage(close, 21) > Average(close, 50) and Average(close, 50) > Average(close[5], 50) and low >= Average(close, 10));1m' IS TRUE`;
             if (this.builder.config['estimate'] && this.builder.config.volume != null) {
                 let avg = parseInt(this.builder.config.volume.split(',').join(''));
-                primary.trigger.submit = `${symbol} STUDY '{tho=true};Between(SecondsTillTime(935), ${-60 * 60 * 6 + 60 * 30}, 0) and Between(close, ${this.price.financial()}, ${this.limit.financial()}) and (Average(close, 10) > ExpAverage(close, 21) and ExpAverage(close, 21) > Average(close, 50) and Average(close, 50) > Average(close[5], 50) and low >= Average(close, 10)) and (((fold i = 0 to 40 with s = 0 do if  GetValue(GetYYYYMMDD(),i*10) == GetYYYYMMDD() and GetValue(SecondsTillTime(930),i*10)<=-600 then s + GetValue(Sum(volume, 10), i*10) else s) + (fold j = 0 to 10 with b = 0 do if j <= ((-SecondsTillTime(930)/60)%10) then b + if j == 0 then GetValue(volume, (-SecondsTillTime(930)/60)-0) else if j == 1 then GetValue(volume, (-SecondsTillTime(930)/60)-1) else if j == 2 then GetValue(volume, (-SecondsTillTime(930)/60)-2) else if j == 3 then GetValue(volume, (-SecondsTillTime(930)/60)-3) else if j == 4 then GetValue(volume, (-SecondsTillTime(930)/60)-4) else if j == 5 then GetValue(volume, (-SecondsTillTime(930)/60)-5) else if j == 6 then GetValue(volume, (-SecondsTillTime(930)/60)-6) else if j == 7 then GetValue(volume, (-SecondsTillTime(930)/60)-7) else if j == 8 then GetValue(volume, (-SecondsTillTime(930)/60)-8) else if j == 9 then GetValue(volume, (-SecondsTillTime(930)/60)-9) else 0 else b))/(-SecondsTillTime(930)/60+1)*390) > ${avg}*1.4;1m' IS TRUE`;
+                primary.trigger.submit = `${symbol} STUDY '{tho=true};Between(SecondsTillTime(935), ${-60 * 60 * 6 + 60 * 30}, 0) and Between(close, ${this.price.financial()}, ${this.limit.financial()}) and (((fold i = 0 to 40 with s = 0 do if  GetValue(GetYYYYMMDD(),i*10) == GetYYYYMMDD() and GetValue(SecondsTillTime(930),i*10)<=-600 then s + GetValue(Sum(volume, 10), i*10) else s) + (fold j = 0 to 10 with b = 0 do if j <= ((-SecondsTillTime(930)/60)%10) then b + if j == 0 then GetValue(volume, (-SecondsTillTime(930)/60)-0) else if j == 1 then GetValue(volume, (-SecondsTillTime(930)/60)-1) else if j == 2 then GetValue(volume, (-SecondsTillTime(930)/60)-2) else if j == 3 then GetValue(volume, (-SecondsTillTime(930)/60)-3) else if j == 4 then GetValue(volume, (-SecondsTillTime(930)/60)-4) else if j == 5 then GetValue(volume, (-SecondsTillTime(930)/60)-5) else if j == 6 then GetValue(volume, (-SecondsTillTime(930)/60)-6) else if j == 7 then GetValue(volume, (-SecondsTillTime(930)/60)-7) else if j == 8 then GetValue(volume, (-SecondsTillTime(930)/60)-8) else if j == 9 then GetValue(volume, (-SecondsTillTime(930)/60)-9) else 0 else b))/(-SecondsTillTime(930)/60+1)*390) > ${avg}*1.4;1m' IS TRUE`;
             }
         } else {
             primary.trigger = new StopLimitOrder(
@@ -253,38 +254,35 @@ class Pyramid {
         primary.group.slice(-1)[0].profit = (this.take - this.limit) * this.share * (this.builder.setup.long ? 1 : -1);
 
         // round-trip sell rule
-        this.protect = this.price * (100 + 10 * (this.builder.setup.long ? 1: -1)).percent();
+        this.protect = this.price * (100 + 10 * (this.builder.setup.long ? 1 : -1)).percent();
         if (this.builder.setup.long) {
             this.protect = Math.min(this.price + (this.price - this.stop) * 2, this.protect);
         } else {
             this.protect = Math.max(this.price + (this.price - this.stop) * 2, this.protect);
         }
+
+        if (this.builder?.bookkeeper?.sma10 != null) {
+            primary.group.push(new StopOrder(symbol, this.builder.setup.close(), this.share, this.builder.bookkeeper.sma10*0.985));
+        }
+
         let cond = `${symbol} MARK AT OR ${this.builder.setup.long ? "ABOVE" : "BELOW"} ${this.protect.financial()}`;
 
-        primary.group.push(new StopOrder(symbol, this.builder.setup.close(), this.share, this.limit !== this.price ? "TRG+0.00%": this.limit));
-        primary.group.slice(-1)[0].submit = cond;
+        if (this.limit === this.price) {
+            primary.group.push(new StopOrder(symbol, this.builder.setup.close(), this.share, this.limit !== this.price ? "TRG+0.00%" : this.limit));
+            primary.group.slice(-1)[0].submit = cond;
+        } else {
+            primary.group.push(new TrailStopOrder(symbol, this.builder.setup.close(), this.share, this.builder.setup.long ? `MARK-${(this.builder.risk.risk * 2).financial()}%` : `MARK+${(this.builder.risk.risk * 2).financial()}%`));
+        }
 
         if (this.builder.config.count === 1 && this.limit !== this.price) {
             primary.group.push(new StopOrder(symbol, this.builder.setup.close(), this.share, `TRG${this.builder.setup.long ? "-" : "+"}${this.builder.risk.risk.financial()}%`));
         } else {
             primary.group.push(new StopOrder(symbol, this.builder.setup.close(), this.share, this.stop));
         }
-        primary.group.slice(-1)[0].cancel = cond;
-        primary.group.slice(-1)[0].loss = (this.stop - this.limit) * this.share * (this.builder.setup.long ? -1 : 1);
-
-        // sell near market close if low close range and pretty near to stop to avoid heart by gap down tomorrow
-        let reversal = new MarketOrder(symbol, this.builder.setup.close(), this.share);
-        reversal.submit = `${symbol} STUDY '{tho=true};Between(SecondsTillTime(1600),0,${60 * 3}) and (${this._close_range_1m()}<0.4) and close <= ${(this.stop*1.01).financial()};1m' IS TRUE`;
-        reversal.tif = "GTC";
-        // primary.group.push(reversal);
-        if (this.builder.config.volume != null && this.builder.config.trades == null && this.builder.setup.long) {
-            let avg = parseInt(this.builder.config.volume.split(',').join(''));
-            let volume = new MarketOrder(symbol, this.builder.setup.close(), this.share);
-            // sell near market close if volume not high enough on pivot day
-            volume.submit = `${symbol} STUDY '{tho=true};Between(SecondsTillTime(1600),0,${60 * 3}) and Sum(volume, 390) < ${avg} and (${this._close_range_1m()}<0.45);1m' IS TRUE`;
-            volume.tif = "GTC";
-            primary.group.push(volume);
+        if (this.limit === this.price) {
+            primary.group.slice(-1)[0].cancel = cond;
         }
+        primary.group.slice(-1)[0].loss = (this.stop - this.limit) * this.share * (this.builder.setup.long ? -1 : 1);
     }
 
     exit() {
@@ -317,9 +315,9 @@ class Pyramid {
             oco.group.slice(-1)[0].loss = (this.stop - this.limit) * shares[i] * (this.builder.setup.long ? -1 : 1);
             let reversal = new MarketOrder(symbol, this.builder.setup.close(), shares[i]);
             let conditions = close_range_condition.concat([
-                `plot Cond = Between(SecondsTillTime(1600),0,${60 * 1}) and CloseRange < 0.4 and close <= ${(this.stop*1.01).financial()};`,
+                `plot Cond = Between(SecondsTillTime(1600),0,${60 * 1}) and CloseRange < 0.4 and close <= ${(this.stop * 1.01).financial()};`,
             ]);
-            reversal.submit = `${symbol} STUDY '{tho=true};${conditions.map((x)=>x.replace(";", "|$")).join("")};1m' IS TRUE`;
+            reversal.submit = `${symbol} STUDY '{tho=true};${conditions.map((x) => x.replace(";", "|$")).join("")};1m' IS TRUE`;
             reversal.tif = "GTC";
             oco.group.push(reversal);
             multi.orders.push(oco);
@@ -375,13 +373,15 @@ export class PyramidBuilder {
     public risk: any;
     public config: any;
     public exit: any;
+    public bookkeeper: any;
 
-    constructor(style: any, setup: any, risk: any, config: any, exit: any) {
+    constructor(style: any, setup: any, risk: any, config: any, exit: any, bookkeeper: any) {
         this.style = style
         this.setup = setup
         this.risk = risk
         this.config = config
         this.exit = exit
+        this.bookkeeper = bookkeeper
     }
 
     build() {
@@ -404,7 +404,7 @@ export function building(params: any) {
     let setup = new Setup(params.build.setup);
     setup.init();
     let risk = new Risk(params['assets'], setup, params.build['pyramid']['trades'], params.build['pyramid']['count']);
-    let builder = new PyramidBuilder(params.build.style, setup, risk, params.build['pyramid'], params.build['exit'])
+    let builder = new PyramidBuilder(params.build.style, setup, risk, params.build['pyramid'], params.build['exit'], params.bookkeeper)
     return builder.build();
 }
 
@@ -483,9 +483,9 @@ export function riding(builder: PyramidBuilder, params: any) {
             oco.group.push(new StopOrder(symbol, builder.setup.close(), shares, stop));
             let reversal = new MarketOrder(symbol, builder.setup.close(), shares);
             let conditions = close_range_condition.concat([
-              `plot Cond = Between(SecondsTillTime(1600),0,${60 * 3}) and CloseRange < 0.6 and FastHigh >= ${(stop + (target-stop) * 0.6).financial()};`,
+                `plot Cond = Between(SecondsTillTime(1600),0,${60 * 3}) and CloseRange < 0.6 and FastHigh >= ${(stop + (target - stop) * 0.6).financial()};`,
             ]);
-            reversal.submit = `${symbol} STUDY '{tho=true};${conditions.map((x)=>x.replace(";", "|$")).join("")};1m' IS TRUE`;
+            reversal.submit = `${symbol} STUDY '{tho=true};${conditions.map((x) => x.replace(";", "|$")).join("")};1m' IS TRUE`;
             reversal.tif = "GTC";
             oco.group.push(reversal);
             multi.orders.push(oco);
