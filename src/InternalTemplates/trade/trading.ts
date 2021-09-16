@@ -67,6 +67,7 @@ class Setup {
     public pattern: any;
     public long: any;
     public actionable: any;
+    public scale: number;
 
     constructor(input: any) {
         this.symbol = input.symbol;
@@ -87,6 +88,7 @@ class Setup {
             }
         }
         this.pattern = defaults(input.pattern, 'Consolidation');
+        this.scale = defaults(input.scale, 1.0);
     }
 
     init() {
@@ -117,7 +119,7 @@ class Risk {
         if (percentageStopLoss) {
             this.risk = parseFloat(setup.stop.slice(0, -1));
             setup.stop = setup.pivot * (100 - this.risk * (this.setup.long ? 1 : -1)).percent()
-            this.position = assets / 10;
+            this.position = assets / 10 * this.setup.scale;
         } else {
             let x = setup.pivot
             if (trades != null && trades.length === layer) {
@@ -227,11 +229,12 @@ class Pyramid {
             }
             this.limit = this.builder.setup.pivot * (100 + upper).percent();
             primary.trigger = new LimitOrder(
-                symbol, this.builder.setup.open(), this.share, 'LAST+.50%');
-            primary.trigger.submit = `${symbol} STUDY '{tho=true};Between(SecondsTillTime(935), ${-60 * 60 * 6 + 60 * 30}, 0) and Between(close, ${this.price.financial()}, ${this.limit.financial()}) and (Average(close, 10) > ExpAverage(close, 21) and ExpAverage(close, 21) > Average(close, 50) and Average(close, 50) > Average(close[5], 50) and low >= Average(close, 10));1m' IS TRUE`;
+                symbol, this.builder.setup.open(), this.share, upper <= 1 ? this.limit: 'LAST+.50%');
+            let until = 935;
+            primary.trigger.submit = `${symbol} STUDY '{tho=true};Between(SecondsTillTime(${until}), ${(-390 + until - 930 + 30) * 60}, 0) and Between(close, ${this.price.financial()}, ${this.limit.financial()}) and (Average(close, 10) > ExpAverage(close, 21) and ExpAverage(close, 21) > Average(close, 50) and Average(close, 50) > Average(close[5], 50) and low >= Average(close, 10));1m' IS TRUE`;
             if (this.builder.config['estimate'] && this.builder.config.volume != null) {
                 let avg = parseInt(this.builder.config.volume.split(',').join(''));
-                primary.trigger.submit = `${symbol} STUDY '{tho=true};Between(SecondsTillTime(935), ${-60 * 60 * 6 + 60 * 30}, 0) and Between(close, ${this.price.financial()}, ${this.limit.financial()}) and (((fold i = 0 to 40 with s = 0 do if  GetValue(GetYYYYMMDD(),i*10) == GetYYYYMMDD() and GetValue(SecondsTillTime(930),i*10)<=-600 then s + GetValue(Sum(volume, 10), i*10) else s) + (fold j = 0 to 10 with b = 0 do if j <= ((-SecondsTillTime(930)/60)%10) then b + if j == 0 then GetValue(volume, (-SecondsTillTime(930)/60)-0) else if j == 1 then GetValue(volume, (-SecondsTillTime(930)/60)-1) else if j == 2 then GetValue(volume, (-SecondsTillTime(930)/60)-2) else if j == 3 then GetValue(volume, (-SecondsTillTime(930)/60)-3) else if j == 4 then GetValue(volume, (-SecondsTillTime(930)/60)-4) else if j == 5 then GetValue(volume, (-SecondsTillTime(930)/60)-5) else if j == 6 then GetValue(volume, (-SecondsTillTime(930)/60)-6) else if j == 7 then GetValue(volume, (-SecondsTillTime(930)/60)-7) else if j == 8 then GetValue(volume, (-SecondsTillTime(930)/60)-8) else if j == 9 then GetValue(volume, (-SecondsTillTime(930)/60)-9) else 0 else b))/(-SecondsTillTime(930)/60+1)*390) > ${avg}*1.4;1m' IS TRUE`;
+                primary.trigger.submit = `${symbol} STUDY '{tho=true};Between(SecondsTillTime(${until}), ${(-390 + until - 930 + 30) * 60}, 0) and Between(close, ${this.price.financial()}, ${this.limit.financial()}) and (((fold i = 0 to 40 with s = 0 do if  GetValue(GetYYYYMMDD(),i*10) == GetYYYYMMDD() and GetValue(SecondsTillTime(930),i*10)<=-600 then s + GetValue(Sum(volume, 10), i*10) else s) + (fold j = 0 to 10 with b = 0 do if j <= ((-SecondsTillTime(930)/60)%10) then b + if j == 0 then GetValue(volume, (-SecondsTillTime(930)/60)-0) else if j == 1 then GetValue(volume, (-SecondsTillTime(930)/60)-1) else if j == 2 then GetValue(volume, (-SecondsTillTime(930)/60)-2) else if j == 3 then GetValue(volume, (-SecondsTillTime(930)/60)-3) else if j == 4 then GetValue(volume, (-SecondsTillTime(930)/60)-4) else if j == 5 then GetValue(volume, (-SecondsTillTime(930)/60)-5) else if j == 6 then GetValue(volume, (-SecondsTillTime(930)/60)-6) else if j == 7 then GetValue(volume, (-SecondsTillTime(930)/60)-7) else if j == 8 then GetValue(volume, (-SecondsTillTime(930)/60)-8) else if j == 9 then GetValue(volume, (-SecondsTillTime(930)/60)-9) else 0 else b))/(-SecondsTillTime(930)/60+1)*390) > ${avg}*1.4;1m' IS TRUE`;
             }
         } else {
             primary.trigger = new StopLimitOrder(
@@ -239,19 +242,15 @@ class Pyramid {
             if (!this.builder.setup.long) {
                 (primary.trigger as StopLimitOrder).stopType = "MARK";
             }
-            let pullback = this.price * (100 - 2).percent();
-            if (this.builder.setup.atr != null) {
-                pullback = this.price - this.builder.setup.atr / 2;
-            }
-            primary.trigger.submit = `${symbol} STUDY '{tho=true};Between(SecondsTillTime(935), ${-60 * 60 * 6 + 60 * 30}, 0) and ((Highest(high, 390) >= ${this.price.financial()} and high <= ${pullback.financial()}) or ((Highest(high, 390) < ${this.price.financial()}) and Between(high, ${(this.price * (100 - 1).percent()).financial()}, ${this.price.financial()})));1m' IS TRUE`;
-            if (this.limit === this.price) {
-                primary.trigger.submit = null;
-            }
-            primary.trigger.submit = null;
         }
 
         primary.group.push(new LimitOrder(symbol, this.builder.setup.close(), this.share, this.take));
         primary.group.slice(-1)[0].profit = (this.take - this.limit) * this.share * (this.builder.setup.long ? 1 : -1);
+
+
+        if (this.builder?.bookkeeper?.sma10 != null) {
+            primary.group.push(new StopOrder(symbol, this.builder.setup.close(), this.share, this.builder.bookkeeper.sma10*0.985));
+        }
 
         // round-trip sell rule
         this.protect = this.price * (100 + 10 * (this.builder.setup.long ? 1 : -1)).percent();
@@ -260,27 +259,26 @@ class Pyramid {
         } else {
             this.protect = Math.max(this.price + (this.price - this.stop) * 2, this.protect);
         }
-
-        if (this.builder?.bookkeeper?.sma10 != null) {
-            primary.group.push(new StopOrder(symbol, this.builder.setup.close(), this.share, this.builder.bookkeeper.sma10*0.985));
-        }
-
         let cond = `${symbol} MARK AT OR ${this.builder.setup.long ? "ABOVE" : "BELOW"} ${this.protect.financial()}`;
 
         if (this.limit === this.price) {
-            primary.group.push(new StopOrder(symbol, this.builder.setup.close(), this.share, this.limit !== this.price ? "TRG+0.00%" : this.limit));
+            primary.group.push(new StopOrder(symbol, this.builder.setup.close(), this.share, this.limit));
             primary.group.slice(-1)[0].submit = cond;
         } else {
             primary.group.push(new TrailStopOrder(symbol, this.builder.setup.close(), this.share, this.builder.setup.long ? `MARK-${(this.builder.risk.risk * 2).financial()}%` : `MARK+${(this.builder.risk.risk * 2).financial()}%`));
         }
 
-        if (this.builder.config.count === 1 && this.limit !== this.price) {
+        if (this.limit !== this.price) {
             primary.group.push(new StopOrder(symbol, this.builder.setup.close(), this.share, `TRG${this.builder.setup.long ? "-" : "+"}${this.builder.risk.risk.financial()}%`));
         } else {
-            primary.group.push(new StopOrder(symbol, this.builder.setup.close(), this.share, this.stop));
-        }
-        if (this.limit === this.price) {
-            primary.group.slice(-1)[0].cancel = cond;
+            if (this.builder.config.cond_sl == true && this.builder.setup.long) {
+                primary.group.push(new MarketOrder(symbol, this.builder.setup.close(), this.share));
+                primary.group.slice(-1)[0].tif = "GTC";
+                primary.group.slice(-1)[0].submit = `${symbol} STUDY '{tho=true};low < ${this.stop.financial()};1m' IS TRUE`;
+            } else {
+                primary.group.push(new StopOrder(symbol, this.builder.setup.close(), this.share, this.stop));
+                primary.group.slice(-1)[0].cancel = cond;
+            }
         }
         primary.group.slice(-1)[0].loss = (this.stop - this.limit) * this.share * (this.builder.setup.long ? -1 : 1);
     }
