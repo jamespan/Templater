@@ -14,6 +14,7 @@ class ConditionalOrder {
   public cancel: any;
   public loss: any;
   public profit: any;
+  public comment: string;
 
   constructor(symbol: string, direction: string, share: number) {
     this.symbol = symbol;
@@ -27,6 +28,7 @@ class ConditionalOrder {
     this.cancel = null;
     this.loss = 0.0;
     this.profit = 0.0;
+    this.comment = null;
   }
 
   submitAfterOpen() {
@@ -37,16 +39,19 @@ class ConditionalOrder {
   toString() {
     let expression = "";
     if (this.submitAt != null) {
-      expression = expression + ` SUBMIT AT ${this.submitAt}`;
+      expression += ` SUBMIT AT ${this.submitAt}`;
     }
     if (this.cancelAt != null) {
-      expression = expression + ` CANCEL AT ${this.cancelAt}`;
+      expression += ` CANCEL AT ${this.cancelAt}`;
     }
     if (this.submit != null) {
-      expression = expression + ` WHEN ${this.submit}`;
+      expression += ` WHEN ${this.submit}`;
     }
     if (this.cancel != null) {
-      expression = expression + ` CANCEL IF ${this.cancel}`;
+      expression += ` CANCEL IF ${this.cancel}`;
+    }
+    if (this.comment != null) {
+      expression += ` #${this.comment}`;
     }
     return expression;
   }
