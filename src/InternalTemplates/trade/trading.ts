@@ -251,15 +251,17 @@ class Pyramid {
 
 
         if (this.builder?.bookkeeper?.sma10 != null) {
+            let trailing = this.builder.bookkeeper.sma10 * 0.985;
             if (this.builder.config.cond_sl == true && this.builder.setup.long) {
                 let stop = new MarketOrder(symbol, this.builder.setup.close(), this.share);
                 stop.tif = "GTC";
-                stop.submit = `${symbol} STUDY '{tho=true};low < ${(this.builder.bookkeeper.sma10*0.985).financial()};1m' IS TRUE`;
+                stop.submit = `${symbol} STUDY '{tho=true};low < ${trailing.financial()};1m' IS TRUE`;
                 primary.group.push(stop);
             } else {
-                primary.group.push(new StopOrder(symbol, this.builder.setup.close(), this.share, this.builder.bookkeeper.sma10*0.985));
+                primary.group.push(new StopOrder(symbol, this.builder.setup.close(), this.share, trailing));
             }
             primary.group.slice(-1)[0].comment = "Undercut Moving Average";
+            primary.group.slice(-1)[0].loss = Math.max((this.price - trailing) * this.share, 0);
         }
 
         // round-trip sell rule

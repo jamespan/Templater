@@ -26,8 +26,8 @@ class ConditionalOrder {
     this.cancelAt = null;
     this.submit = null;
     this.cancel = null;
-    this.loss = 0.0;
-    this.profit = 0.0;
+    this.loss = NaN;
+    this.profit = NaN;
     this.comment = null;
   }
 
@@ -144,11 +144,11 @@ export class OrderOCO {
   }
 
   getLoss() {
-    return this.group.map(x => x.loss).reduce((x, y) => x + y, 0);
+    return Math.min(...this.group.map(x => x.loss).filter(Boolean));
   }
 
   getProfit() {
-    return this.group.map(x => x.profit).reduce((x, y) => x + y, 0);
+    return this.group.map(x => x.profit).filter(Boolean).reduce((x, y) => x + y, 0);
   }
 }
 
@@ -169,11 +169,11 @@ export class MultiOCO {
   }
 
   getLoss() {
-    return this.orders.map(x => x.getLoss()).reduce((x, y) => x + y, 0);
+    return this.orders.map(x => x.getLoss()).filter(Boolean).reduce((x, y) => x + y, 0);
   }
 
   getProfit() {
-    return this.orders.map(x => x.getProfit()).reduce((x, y) => x + y, 0);
+    return this.orders.map(x => x.getProfit()).filter(Boolean).reduce((x, y) => x + y, 0);
   }
 
   String() {
