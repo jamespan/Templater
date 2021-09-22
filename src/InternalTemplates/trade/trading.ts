@@ -262,6 +262,12 @@ class Pyramid {
             }
             primary.group.slice(-1)[0].comment = "Undercut Moving Average";
             primary.group.slice(-1)[0].loss = Math.max((this.price - trailing) * this.share, 0);
+
+            let stop = new MarketOrder(symbol, this.builder.setup.close(), this.share);
+            stop.tif = "GTC";
+            stop.submit = `${symbol} STUDY '{tho=true};low < MovingAverage(price=close(period=AggregationPeriod.DAY)[1], period=10)*0.985;1m' IS TRUE`;
+            stop.comment = "Undercut Moving Average";
+            primary.group.push(stop);
         }
 
         // round-trip sell rule
