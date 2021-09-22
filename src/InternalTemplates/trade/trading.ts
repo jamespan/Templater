@@ -250,8 +250,8 @@ class Pyramid {
         primary.group.slice(-1)[0].comment = "Profit Taking";
 
 
-        if (this.builder?.bookkeeper?.sma10 != null) {
-            let trailing = this.builder.bookkeeper.sma10 * 0.985;
+        if (this.builder?.bookkeeper?.sma10_trailing != null) {
+            let trailing = this.builder.bookkeeper.sma10_trailing * 0.985;
             if (this.builder.config.cond_sl == true && this.builder.setup.long) {
                 let stop = new MarketOrder(symbol, this.builder.setup.close(), this.share);
                 stop.tif = "GTC";
@@ -265,7 +265,7 @@ class Pyramid {
 
             let stop = new MarketOrder(symbol, this.builder.setup.close(), this.share);
             stop.tif = "GTC";
-            stop.submit = `${symbol} STUDY '{tho=true};low < MovingAverage(price=close(period=AggregationPeriod.DAY)[1], period=10)*0.985;1m' IS TRUE`;
+            stop.submit = `${symbol} STUDY '{tho=true};low < MovingAverage(data=close(period=AggregationPeriod.DAY)[1],length=10)*0.985;1m' IS TRUE`;
             stop.comment = "Undercut Moving Average";
             primary.group.push(stop);
         }
