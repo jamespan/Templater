@@ -250,7 +250,7 @@ class Pyramid {
         primary.group.slice(-1)[0].comment = "Profit Taking";
 
 
-        if (this.builder?.bookkeeper?.sma10_trailing != null) {
+        if (this.builder?.bookkeeper?.sma10_trailing != null && this.limit === this.price) {
             let trailing = this.builder.bookkeeper.sma10_trailing * 0.985;
             if (this.builder.config.cond_sl == true && this.builder.setup.long) {
                 let stop = new MarketOrder(symbol, this.builder.setup.close(), this.share);

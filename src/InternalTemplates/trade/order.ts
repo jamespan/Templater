@@ -144,11 +144,11 @@ export class OrderOCO {
   }
 
   getLoss() {
-    return Math.min(...this.group.map(x => x.loss).filter(Boolean));
+    return Math.min(...this.group.map(x => x.loss).filter((x)=>!isNaN(x)));
   }
 
   getProfit() {
-    return this.group.map(x => x.profit).filter(Boolean).reduce((x, y) => x + y, 0);
+    return this.group.map(x => x.profit).filter((x)=>!isNaN(x)).reduce((x, y) => x + y, 0);
   }
 }
 
@@ -169,11 +169,11 @@ export class MultiOCO {
   }
 
   getLoss() {
-    return this.orders.map(x => x.getLoss()).filter(Boolean).reduce((x, y) => x + y, 0);
+    return this.orders.map(x => x.getLoss()).filter((x)=>!isNaN(x)).reduce((x, y) => x + y, 0);
   }
 
   getProfit() {
-    return this.orders.map(x => x.getProfit()).filter(Boolean).reduce((x, y) => x + y, 0);
+    return this.orders.map(x => x.getProfit()).filter((x)=>!isNaN(x)).reduce((x, y) => x + y, 0);
   }
 
   String() {
