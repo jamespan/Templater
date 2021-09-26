@@ -35,7 +35,7 @@ Number.prototype.financial = function () {
 };
 
 Number.prototype.half = function () {
-    return Math.floor(this / 2);
+    return Math.round(this / 2);
 };
 
 Number.prototype.left = function () {
@@ -250,24 +250,9 @@ class Pyramid {
         primary.group.slice(-1)[0].comment = "Profit Taking";
 
 
-        if (this.builder?.bookkeeper?.sma10_trailing != null && this.limit === this.price) {
-            let trailing = this.builder.bookkeeper.sma10_trailing * 0.985;
-            if (this.builder.config.cond_sl == true && this.builder.setup.long) {
-                let stop = new MarketOrder(symbol, this.builder.setup.close(), this.share);
-                stop.tif = "GTC";
-                stop.submit = `${symbol} STUDY '{tho=true};low < ${trailing.financial()};1m' IS TRUE`;
-                primary.group.push(stop);
-            } else {
-                primary.group.push(new StopOrder(symbol, this.builder.setup.close(), this.share, trailing));
-            }
-            primary.group.slice(-1)[0].comment = "Undercut Moving Average";
-            primary.group.slice(-1)[0].loss = Math.max((this.price - trailing) * this.share, 0);
-
-            let stop = new MarketOrder(symbol, this.builder.setup.close(), this.share);
-            stop.tif = "GTC";
-            stop.submit = `${symbol} STUDY '{tho=true};low < MovingAverage(data=close(period=AggregationPeriod.DAY)[1],length=10)*0.985;1m' IS TRUE`;
-            stop.comment = "Undercut Moving Average";
-            primary.group.push(stop);
+        if (this.builder.bookkeeper?.sma10_trailing != null && this.limit === this.price) {
+            primary.group.push(_ma_trailing_order(this.builder, this.price, this.share));
+            primary.group.push(_ma_dynamic_stop(this.builder, this.share));
         }
 
         // round-trip sell rule
@@ -443,8 +428,37 @@ export function checking(pyramids: Array<Pyramid>) {
 }
 
 let close_range_condition = [
-    "def CloseRange = (close-low(period = AggregationPeriod.DAY))/(high(period = AggregationPeriod.DAY)-low(period = AggregationPeriod.DAY));",
+    "def CloseRange = (close-low(period=AggregationPeriod.DAY))/(high(period=AggregationPeriod.DAY)-low(period=AggregationPeriod.DAY));",
 ];
+
+
+function _ma_trailing_order(builder: PyramidBuilder, price: number, share: number): MarketOrder | StopOrder {
+    let trailing = builder.bookkeeper.sma10_trailing * 0.985;
+    let symbol = builder.setup.symbol;
+    let stop: MarketOrder | StopOrder;
+    if (builder.config.cond_sl == true && builder.setup.long) {
+        stop = new MarketOrder(symbol, builder.setup.close(), share);
+        stop.tif = "GTC";
+        stop.submit = `${symbol} STUDY '{tho=true};low < ${trailing.financial()};1m' IS TRUE`;
+    } else {
+        stop = new StopOrder(symbol, builder.setup.close(), share, trailing);
+    }
+    stop.comment = "Undercut Moving Average";
+    if (price !== null) {
+        stop.loss = Math.max((price - trailing) * share, 0);
+    }
+
+    return stop;
+}
+
+function _ma_dynamic_stop(builder: PyramidBuilder, share: number): MarketOrder {
+    let symbol = builder.setup.symbol;
+    let stop = new MarketOrder(symbol, builder.setup.close(), share);
+    stop.tif = "GTC";
+    stop.submit = `${symbol} STUDY '{tho=true};low < MovingAverage(data=close(period=AggregationPeriod.DAY)[1],length=10)*0.985;1m' IS TRUE`;
+    stop.comment = "Undercut Moving Average";
+    return stop;
+}
 
 export function riding(builder: PyramidBuilder, params: any) {
     let strategies = new Map();
@@ -481,26 +495,29 @@ export function riding(builder: PyramidBuilder, params: any) {
             let target = evaluate(config.target);
             let stop = config['support'];
             let drawback = Math.abs(((target / stop) - 1) / 2 * 100).financial();
-            if (config['part'] === 'half') {
+            if (['half', 'third'].contains(config['part'])) {
+                let keep = config['part'] == 'half' ? shares.half() : shares.one_third();
+                let amount = shares - keep;
                 let oco = new OrderOCO();
-                oco.group.push(new StopOrder(symbol, builder.setup.close(), shares.half(), stop));
-                oco.group.push(new TrailStopOrder(symbol, builder.setup.close(), shares.half(), builder.setup.long ? `MARK-${drawback}%` : `MARK+${drawback}%`));
+                oco.group.push(new StopOrder(symbol, builder.setup.close(), amount, stop));
+                oco.group.push(new TrailStopOrder(symbol, builder.setup.close(), amount, builder.setup.long ? `MARK-${drawback}%` : `MARK+${drawback}%`));
+                if (builder.bookkeeper?.sma10_trailing != null) {
+                    oco.group.push(_ma_trailing_order(builder, null, amount));
+                    oco.group.push(_ma_dynamic_stop(builder, amount));
+                }
                 multi.orders.push(oco);
-                shares = shares.left();
-            } else if (config['part'] === 'third') {
-                let third = shares.one_third();
-                let oco = new OrderOCO();
-                oco.group.push(new StopOrder(symbol, builder.setup.close(), shares - third, stop));
-                oco.group.push(new TrailStopOrder(symbol, builder.setup.close(), shares - third, builder.setup.long ? `MARK-${drawback}%` : `MARK+${drawback}%`));
-                multi.orders.push(oco);
-                shares = third;
+                shares = keep;
             }
             let oco = new OrderOCO();
             oco.group.push(new LimitOrder(symbol, builder.setup.close(), shares, target));
             oco.group.push(new StopOrder(symbol, builder.setup.close(), shares, stop));
+            if (builder.bookkeeper?.sma10_trailing != null) {
+                oco.group.push(_ma_trailing_order(builder, null, shares));
+                oco.group.push(_ma_dynamic_stop(builder, shares));
+            }
             let reversal = new MarketOrder(symbol, builder.setup.close(), shares);
             let conditions = close_range_condition.concat([
-                `plot Cond = Between(SecondsTillTime(1600),0,${60 * 3}) and CloseRange < 0.6 and high(period = AggregationPeriod.DAY) >= ${(stop + (target - stop) * 0.6).financial()};`,
+                `plot Cond = Between(SecondsTillTime(1600),0,${60}) and CloseRange < 0.6 and high(period=AggregationPeriod.DAY) >= ${(stop + (target - stop) * 0.6).financial()};`,
             ]);
             reversal.submit = `${symbol} STUDY '{tho=true};${conditions.map((x) => x.replace(";", "|$")).join("")};1m' IS TRUE`;
             reversal.tif = "GTC";
