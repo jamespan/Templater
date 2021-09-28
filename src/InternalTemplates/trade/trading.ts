@@ -8,7 +8,7 @@ import {
     TrailStopOrder,
     StopOrder
 } from "./order"
-import {evaluate} from "mathjs";
+import {evaluate, or} from "mathjs";
 
 const defaults = (o: any, v: any) => o != null ? o : v;
 
@@ -65,7 +65,7 @@ class Setup {
     public atr: any;
     public take: any;
     public pattern: any;
-    public long: any;
+    public long: boolean;
     public actionable: any;
     public scale: number;
     public range: number;
@@ -265,6 +265,8 @@ class Pyramid {
         let cond = `${symbol} MARK AT OR ${this.builder.setup.long ? "ABOVE" : "BELOW"} ${this.protect.financial()}`;
 
         if (this.limit === this.price) {
+            primary.group.push(new TrailStopOrder(symbol, this.builder.setup.close(), this.share, this.builder.setup.long ? `MARK-${(this.builder.risk.profit / 2).financial()}%` : `MARK+${(this.builder.risk.profit / 2).financial()}%`));
+            primary.group.slice(-1)[0].comment = "Protect Half Profit";
             primary.group.push(new StopOrder(symbol, this.builder.setup.close(), this.share, this.limit));
             primary.group.slice(-1)[0].submit = cond;
         } else {
@@ -373,7 +375,7 @@ class Pyramid {
 
 export class PyramidBuilder {
     public style: any;
-    public setup: any;
+    public setup: Setup;
     public risk: any;
     public config: any;
     public exit: any;
@@ -432,23 +434,27 @@ let close_range_condition = [
 ];
 
 
+function _stop_loss_order(builder: PyramidBuilder, stop: number, share: number, cost: number = null, data = 'low'): MarketOrder | StopOrder {
+    let symbol = builder.setup.symbol;
+    let order: MarketOrder | StopOrder;
+    if (builder.config.cond_sl == true && builder.setup.long) {
+        order = new MarketOrder(symbol, builder.setup.close(), share);
+        order.tif = "GTC";
+        order.submit = `${symbol} STUDY '{tho=true};${data} < ${stop.financial()};1m' IS TRUE`;
+    } else {
+        order = new StopOrder(symbol, builder.setup.close(), share, stop);
+    }
+    if (cost !== null) {
+        order.loss = Math.max((cost - stop) * share, 0);
+    }
+    return order;
+}
+
 function _ma_trailing_order(builder: PyramidBuilder, price: number, share: number): MarketOrder | StopOrder {
     let trailing = builder.bookkeeper.sma10_trailing * 0.985;
-    let symbol = builder.setup.symbol;
-    let stop: MarketOrder | StopOrder;
-    if (builder.config.cond_sl == true && builder.setup.long) {
-        stop = new MarketOrder(symbol, builder.setup.close(), share);
-        stop.tif = "GTC";
-        stop.submit = `${symbol} STUDY '{tho=true};low < ${trailing.financial()};1m' IS TRUE`;
-    } else {
-        stop = new StopOrder(symbol, builder.setup.close(), share, trailing);
-    }
-    stop.comment = "Undercut Moving Average";
-    if (price !== null) {
-        stop.loss = Math.max((price - trailing) * share, 0);
-    }
-
-    return stop;
+    let order = _stop_loss_order(builder, trailing, share, price);
+    order.comment = "Undercut Moving Average";
+    return order;
 }
 
 function _ma_dynamic_stop(builder: PyramidBuilder, share: number): MarketOrder {
@@ -501,6 +507,11 @@ export function riding(builder: PyramidBuilder, params: any) {
                 let oco = new OrderOCO();
                 oco.group.push(new StopOrder(symbol, builder.setup.close(), amount, stop));
                 oco.group.push(new TrailStopOrder(symbol, builder.setup.close(), amount, builder.setup.long ? `MARK-${drawback}%` : `MARK+${drawback}%`));
+                if (builder.bookkeeper?.highest_high != null && builder.bookkeeper?.highest_high >= stop * 1.1 && builder.setup.long) {
+                    let order = _stop_loss_order(builder, stop + (builder.bookkeeper?.highest_high - stop) / 2, amount);
+                    order.comment = "Protect Half Profit";
+                    oco.group.push(order);
+                }
                 if (builder.bookkeeper?.sma10_trailing != null) {
                     oco.group.push(_ma_trailing_order(builder, null, amount));
                     oco.group.push(_ma_dynamic_stop(builder, amount));
