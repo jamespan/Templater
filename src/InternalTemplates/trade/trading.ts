@@ -466,6 +466,24 @@ function _ma_dynamic_stop(builder: PyramidBuilder, share: number): MarketOrder {
     return stop;
 }
 
+function _selling_into_weakness(builder: PyramidBuilder, share: number, stop: number, drawback: number): OrderOCO {
+    let symbol = builder.setup.symbol;
+    let oco = new OrderOCO();
+    oco.group.push(new StopOrder(symbol, builder.setup.close(), share, stop));
+    oco.group.slice(-1)[0].comment = "Round-Trip";
+    oco.group.push(new TrailStopOrder(symbol, builder.setup.close(), share, builder.setup.long ? `MARK-${drawback.financial()}%` : `MARK+${drawback.financial()}%`));
+    if (builder.bookkeeper?.highest_high != null && builder.bookkeeper?.highest_high >= builder.setup.pivot * 1.1 && builder.setup.long) {
+        let order = _stop_loss_order(builder, stop + (builder.bookkeeper?.highest_high - stop) / 2, share);
+        order.comment = "Protect Half Profit";
+        oco.group.push(order);
+    }
+    if (builder.bookkeeper?.sma10_trailing != null) {
+        oco.group.push(_ma_trailing_order(builder, null, share));
+        oco.group.push(_ma_dynamic_stop(builder, share));
+    }
+    return oco;
+}
+
 export function riding(builder: PyramidBuilder, params: any) {
     let strategies = new Map();
     if (builder.config['trades'] != null) {
@@ -500,39 +518,28 @@ export function riding(builder: PyramidBuilder, params: any) {
             let shares = config.shares;
             let target = evaluate(config.target);
             let stop = config['support'];
-            let drawback = Math.abs(((target / stop) - 1) / 2 * 100).financial();
+            let drawback = Math.abs(((target / stop) - 1) / 2 * 100);
             if (['half', 'third'].contains(config['part'])) {
                 let keep = config['part'] == 'half' ? shares.half() : shares.one_third();
                 let amount = shares - keep;
-                let oco = new OrderOCO();
-                oco.group.push(new StopOrder(symbol, builder.setup.close(), amount, stop));
-                oco.group.push(new TrailStopOrder(symbol, builder.setup.close(), amount, builder.setup.long ? `MARK-${drawback}%` : `MARK+${drawback}%`));
-                if (builder.bookkeeper?.highest_high != null && builder.bookkeeper?.highest_high >= stop * 1.1 && builder.setup.long) {
-                    let order = _stop_loss_order(builder, stop + (builder.bookkeeper?.highest_high - stop) / 2, amount);
-                    order.comment = "Protect Half Profit";
-                    oco.group.push(order);
-                }
-                if (builder.bookkeeper?.sma10_trailing != null) {
-                    oco.group.push(_ma_trailing_order(builder, null, amount));
-                    oco.group.push(_ma_dynamic_stop(builder, amount));
-                }
+                let oco = _selling_into_weakness(builder, amount, stop, drawback);
                 multi.orders.push(oco);
                 shares = keep;
             }
-            let oco = new OrderOCO();
-            oco.group.push(new LimitOrder(symbol, builder.setup.close(), shares, target));
-            oco.group.push(new StopOrder(symbol, builder.setup.close(), shares, stop));
-            if (builder.bookkeeper?.sma10_trailing != null) {
-                oco.group.push(_ma_trailing_order(builder, null, shares));
-                oco.group.push(_ma_dynamic_stop(builder, shares));
-            }
+            let oco = _selling_into_weakness(builder, shares, stop, drawback);
+
             let reversal = new MarketOrder(symbol, builder.setup.close(), shares);
             let conditions = close_range_condition.concat([
-                `plot Cond = Between(SecondsTillTime(1600),0,${60}) and CloseRange < 0.6 and high(period=AggregationPeriod.DAY) >= ${(stop + (target - stop) * 0.6).financial()};`,
+                `plot Cond = Between(SecondsTillTime(935), ${(-390 + 935 - 930) * 60}, 0) and Between(SecondsTillTime(1600),0,${60}) and CloseRange < 0.6 and high(period=AggregationPeriod.DAY) >= ${(stop + (target - stop) * 0.6).financial()};`,
             ]);
             reversal.submit = `${symbol} STUDY '{tho=true};${conditions.map((x) => x.replace(";", "|$")).join("")};1m' IS TRUE`;
             reversal.tif = "GTC";
-            oco.group.push(reversal);
+            reversal.comment = "Downside Reversal";
+            oco.group.unshift(reversal);
+
+            oco.group.unshift(new LimitOrder(symbol, builder.setup.close(), shares, target))
+            oco.group[0].comment = "Profit Taking";
+
             multi.orders.push(oco);
             multi.orders = multi.orders.reverse();
         }
