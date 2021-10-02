@@ -252,7 +252,7 @@ class Pyramid {
 
         if (this.builder.bookkeeper?.sma10_trailing != null && this.limit === this.price) {
             primary.group.push(_ma_trailing_order(this.builder, this.price, this.share));
-            primary.group.push(_ma_dynamic_stop(this.builder, this.share));
+            primary.group.push(_ma_dynamic_stop(this.builder, this.share, true));
         }
 
         // round-trip sell rule
