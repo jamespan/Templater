@@ -457,11 +457,15 @@ function _ma_trailing_order(builder: PyramidBuilder, price: number, share: numbe
     return order;
 }
 
-function _ma_dynamic_stop(builder: PyramidBuilder, share: number): MarketOrder {
+function _ma_dynamic_stop(builder: PyramidBuilder, share: number, mutex: boolean = false, stops: number[] = null): MarketOrder {
+    let trailing = builder.bookkeeper.sma10_trailing * 0.985;
+    if (stops != null && stops.length > 0) {
+        trailing = Math.max(...stops);
+    }
     let symbol = builder.setup.symbol;
     let stop = new MarketOrder(symbol, builder.setup.close(), share);
     stop.tif = "GTC";
-    stop.submit = `${symbol} STUDY '{tho=true};low < MovingAverage(data=close(period=AggregationPeriod.DAY)[1],length=10)*0.985;1m' IS TRUE`;
+    stop.submit = `${symbol} STUDY '{tho=true};${mutex ? 'low >= ' + trailing.financial() + ' and ': ''}low < MovingAverage(data=close(period=AggregationPeriod.DAY)[1],length=10)*0.985;1m' IS TRUE`;
     stop.comment = "Undercut Moving Average";
     return stop;
 }
@@ -469,17 +473,23 @@ function _ma_dynamic_stop(builder: PyramidBuilder, share: number): MarketOrder {
 function _selling_into_weakness(builder: PyramidBuilder, share: number, stop: number, drawback: number): OrderOCO {
     let symbol = builder.setup.symbol;
     let oco = new OrderOCO();
+    let stops = [] as number[];
     oco.group.push(new StopOrder(symbol, builder.setup.close(), share, stop));
+    stops.push(stop);
     oco.group.slice(-1)[0].comment = "Round-Trip";
     oco.group.push(new TrailStopOrder(symbol, builder.setup.close(), share, builder.setup.long ? `MARK-${drawback.financial()}%` : `MARK+${drawback.financial()}%`));
     if (builder.bookkeeper?.highest_high != null && builder.bookkeeper?.highest_high >= builder.setup.pivot * 1.1 && builder.setup.long) {
-        let order = _stop_loss_order(builder, stop + (builder.bookkeeper?.highest_high - stop) / 2, share);
+        let half_profit_stop = stop + (builder.bookkeeper?.highest_high - stop) / 2;
+        let order = _stop_loss_order(builder, half_profit_stop, share);
         order.comment = "Protect Half Profit";
         oco.group.push(order);
+        stops.push(half_profit_stop);
     }
     if (builder.bookkeeper?.sma10_trailing != null) {
+        let ma_trailing_stop = builder.bookkeeper.sma10_trailing * 0.985;
+        stops.push(ma_trailing_stop);
         oco.group.push(_ma_trailing_order(builder, null, share));
-        oco.group.push(_ma_dynamic_stop(builder, share));
+        oco.group.push(_ma_dynamic_stop(builder, share, true, stops));
     }
     return oco;
 }
