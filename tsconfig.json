@@ -1,4 +1,10 @@
 {
+  "ts-node": {
+    "transpileOnly": true,
+    "compilerOptions": {
+      "module": "commonjs"
+    }
+  },
   "compilerOptions": {
     "baseUrl": "src",
     "inlineSourceMap": true,

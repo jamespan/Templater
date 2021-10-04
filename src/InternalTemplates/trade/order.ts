@@ -1,3 +1,5 @@
+import {Study} from "./thinkscript";
+
 function financial(x: number) {
   return x.toFixed(2);
 }
@@ -10,7 +12,7 @@ class ConditionalOrder {
   public tif: string;
   public submitAt: any;
   public cancelAt: any;
-  public submit: any;
+  public submit: string | Study;
   public cancel: any;
   public loss: any;
   public profit: any;
@@ -45,7 +47,11 @@ class ConditionalOrder {
       expression += ` CANCEL AT ${this.cancelAt}`;
     }
     if (this.submit != null) {
-      expression += ` WHEN ${this.submit}`;
+      if (this.submit instanceof Study) {
+        expression += ` WHEN ${this.symbol} STUDY '${this.submit}' IS TRUE`;
+      } else {
+        expression += ` WHEN ${this.submit}`;
+      }
     }
     if (this.cancel != null) {
       expression += ` CANCEL IF ${this.cancel}`;

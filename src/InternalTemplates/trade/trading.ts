@@ -8,7 +8,18 @@ import {
     TrailStopOrder,
     StopOrder
 } from "./order"
-import {evaluate, or} from "mathjs";
+import {evaluate} from "mathjs";
+import {And, BiExpr, Expr, Or, Study} from "./thinkscript";
+import {
+    BuyRange,
+    AvoidMarketOpenVolatile,
+    HugeVolume,
+    VolumeEstimate,
+    SMA,
+    Undercut,
+    DecisiveUndercut,
+    BuyRangeSMA, SMA_LAST, BeforeMarketClose, ClsRange
+} from "./blocks";
 
 const defaults = (o: any, v: any) => o != null ? o : v;
 
@@ -72,10 +83,11 @@ class Setup {
 
     constructor(input: any) {
         this.symbol = input.symbol;
-        this._direction = defaults(input.direction, 'long');
+        this._direction = input.direction ?? 'long';
         this.pivot = evaluate(input.pivot);
-        this.stop = defaults(input.stop, input.pivot);
+        this.stop = input.stop ?? input.pivot;
         if (typeof this.stop === 'string' || this.stop instanceof String) {
+            // 100*0.985 etc
             if (!this.stop.endsWith('%')) {
                 this.stop = evaluate(this.stop as any);
             }
@@ -88,9 +100,9 @@ class Setup {
                 this.take = evaluate(this.take as any);
             }
         }
-        this.pattern = defaults(input.pattern, 'Consolidation');
-        this.scale = defaults(input.scale, 1.0);
-        this.range = defaults(input.range, 5);
+        this.pattern = input.pattern ?? 'Consolidation';
+        this.scale = evaluate(input.scale ?? "1.0");
+        this.range = input.range ?? 5;
     }
 
     init() {
@@ -229,17 +241,20 @@ class Pyramid {
                 upper = this.builder.setup.range;
             }
             this.limit = this.builder.setup.pivot * (100 + upper).percent();
-            primary.trigger = new LimitOrder(
-                symbol, this.builder.setup.open(), this.share, `MARK+0.00%`);
-            let until = 935;
-            primary.trigger.submit = `${symbol} STUDY '{tho=true};Between(SecondsTillTime(${until}), ${(-390 + until - 930 + 30) * 60}, 0) and Between(high, ${this.price.financial()}, ${this.limit.financial()}) and (Average(close, 10) > ExpAverage(close, 21) and ExpAverage(close, 21) > Average(close, 50) and Average(close, 50) > Average(close[5], 50) and low >= Average(close, 10));1m' IS TRUE`;
-            if (this.builder.config['estimate'] && this.builder.config.volume != null) {
-                let avg = parseInt(this.builder.config.volume.split(',').join(''));
-                primary.trigger.submit = `${symbol} STUDY '{tho=true};Between(SecondsTillTime(${until}), ${(-390 + until - 930 + 30) * 60}, 0) and Between(high, ${this.price.financial()}, ${this.limit.financial()}) and (((fold i = 0 to 40 with s = 0 do if GetValue(GetYYYYMMDD(),i*10) == GetYYYYMMDD() and GetValue(SecondsTillTime(930),i*10)<=-600 then s + GetValue(Sum(volume, 10), i*10) else s) + (fold j = 0 to 10 with b = 0 do if j <= ((-SecondsTillTime(930)/60)%10) then b + if j == 0 then GetValue(volume, (-SecondsTillTime(930)/60)-0) else if j == 1 then GetValue(volume, (-SecondsTillTime(930)/60)-1) else if j == 2 then GetValue(volume, (-SecondsTillTime(930)/60)-2) else if j == 3 then GetValue(volume, (-SecondsTillTime(930)/60)-3) else if j == 4 then GetValue(volume, (-SecondsTillTime(930)/60)-4) else if j == 5 then GetValue(volume, (-SecondsTillTime(930)/60)-5) else if j == 6 then GetValue(volume, (-SecondsTillTime(930)/60)-6) else if j == 7 then GetValue(volume, (-SecondsTillTime(930)/60)-7) else if j == 8 then GetValue(volume, (-SecondsTillTime(930)/60)-8) else if j == 9 then GetValue(volume, (-SecondsTillTime(930)/60)-9) else 0 else b))/(-SecondsTillTime(930)/60+1)*390) > ${avg}*1.4;1m' IS TRUE`;
+            primary.trigger = new LimitOrder(symbol, this.builder.setup.open(), this.share, `MARK+0.00%`);
+            let condition = AvoidMarketOpenVolatile as Expr;
+            if (this.builder.setup.pattern.contains('Pullback')) {
+                condition = condition.and(BuyRangeSMA);
+            } else {
+                condition = condition.and(BuyRange.of(this.price, this.limit));
             }
+            if (this.builder.config?.estimate && this.builder.config.volume != null) {
+                let avg = parseInt(this.builder.config.volume.split(',').join(''));
+                condition = condition.and(HugeVolume.over(`(${avg}*1.4)`));
+            }
+            primary.trigger.submit = new Study(condition);
         } else {
-            primary.trigger = new StopLimitOrder(
-                symbol, this.builder.setup.open(), this.share, this.price, this.limit);
+            primary.trigger = new StopLimitOrder(symbol, this.builder.setup.open(), this.share, this.price, this.limit);
             if (!this.builder.setup.long) {
                 (primary.trigger as StopLimitOrder).stopType = "MARK";
             }
@@ -251,8 +266,8 @@ class Pyramid {
 
 
         if (this.builder.bookkeeper?.sma10_trailing != null && this.limit === this.price) {
-            primary.group.push(_ma_trailing_order(this.builder, this.price, this.share));
-            primary.group.push(_ma_dynamic_stop(this.builder, this.share, true));
+            primary.group.push(_ma_dynamic_stop(this.builder, this.share));
+            primary.group.slice(-1)[0].loss = Math.max((this.price - this.builder.bookkeeper?.sma10_trailing * 0.985) * this.share, 0);
         }
 
         // round-trip sell rule
@@ -280,7 +295,8 @@ class Pyramid {
             if (this.builder.config.cond_sl == true && this.builder.setup.long) {
                 let stop = new MarketOrder(symbol, this.builder.setup.close(), this.share)
                 stop.tif = "GTC";
-                stop.submit = `${symbol} STUDY '{tho=true};low < ${this.stop.financial()};1m' IS TRUE`;
+                stop.submit = new Study(Undercut.value(this.stop));
+                stop.cancel = cond;
                 primary.group.push(stop);
             } else {
                 primary.group.push(new StopOrder(symbol, this.builder.setup.close(), this.share, this.stop));
@@ -319,13 +335,6 @@ class Pyramid {
             oco.group.push(new StopOrder(symbol, this.builder.setup.close(), shares[i], this.stop));
             oco.group.slice(-1)[0].cancel = this.primary.group[1].submit;
             oco.group.slice(-1)[0].loss = (this.stop - this.limit) * shares[i] * (this.builder.setup.long ? -1 : 1);
-            let reversal = new MarketOrder(symbol, this.builder.setup.close(), shares[i]);
-            let conditions = close_range_condition.concat([
-                `plot Cond = Between(SecondsTillTime(1600),0,${60}) and CloseRange < 0.4 and close <= ${(this.stop * 1.01).financial()};`,
-            ]);
-            reversal.submit = `${symbol} STUDY '{tho=true};${conditions.map((x) => x.replace(";", "|$")).join("")};1m' IS TRUE`;
-            reversal.tif = "GTC";
-            oco.group.push(reversal);
             multi.orders.push(oco);
         }
         return multi;
@@ -333,9 +342,8 @@ class Pyramid {
 
     exit_pivot(params: any, base: MultiOCO): MultiOCO {
         let symbol = this.builder.setup.symbol;
-        // let multi = new MultiOCO();
-        let low = defaults(params['low'], this.stop);
-        let prev = defaults(params['prev'], this.stop);
+        let low = params['low'] ?? this.stop;
+        let prev = params['prev'] ?? this.stop;
         let early = [low, prev].sort().reverse();
         let shares = [this.share.half(), this.share.left()];
         for (let i = 0; i < shares.length; ++i) {
@@ -353,8 +361,8 @@ class Pyramid {
 
     exit_segment(params: any, base: MultiOCO): MultiOCO {
         let symbol = this.builder.setup.symbol;
-        let stop = defaults(params['stop'], this.stop);
-        let avg = defaults(params['avg'], '5%');
+        let stop = params['stop'] ?? this.stop;
+        let avg = params['avg'] ?? '5%';
         if (typeof avg === 'string' || avg instanceof String) {
             if (avg.endsWith("%")) {
                 avg = parseFloat(avg.toString()) / 100;
@@ -429,10 +437,6 @@ export function checking(pyramids: Array<Pyramid>) {
     return message;
 }
 
-let close_range_condition = [
-    "def CloseRange = (close-low(period=AggregationPeriod.DAY))/(high(period=AggregationPeriod.DAY)-low(period=AggregationPeriod.DAY));",
-];
-
 
 function _stop_loss_order(builder: PyramidBuilder, stop: number, share: number, cost: number = null, data = 'low'): MarketOrder | StopOrder {
     let symbol = builder.setup.symbol;
@@ -440,7 +444,7 @@ function _stop_loss_order(builder: PyramidBuilder, stop: number, share: number, 
     if (builder.config.cond_sl == true && builder.setup.long) {
         order = new MarketOrder(symbol, builder.setup.close(), share);
         order.tif = "GTC";
-        order.submit = `${symbol} STUDY '{tho=true};${data} < ${stop.financial()};1m' IS TRUE`;
+        order.submit = new Study(Undercut.value(stop));
     } else {
         order = new StopOrder(symbol, builder.setup.close(), share, stop);
     }
@@ -450,22 +454,10 @@ function _stop_loss_order(builder: PyramidBuilder, stop: number, share: number, 
     return order;
 }
 
-function _ma_trailing_order(builder: PyramidBuilder, price: number, share: number): MarketOrder | StopOrder {
-    let trailing = builder.bookkeeper.sma10_trailing * 0.985;
-    let order = _stop_loss_order(builder, trailing, share, price);
-    order.comment = "Undercut Moving Average";
-    return order;
-}
-
-function _ma_dynamic_stop(builder: PyramidBuilder, share: number, mutex: boolean = false, stops: number[] = null): MarketOrder {
-    let trailing = builder.bookkeeper.sma10_trailing * 0.985;
-    if (stops != null && stops.length > 0) {
-        trailing = Math.max(...stops);
-    }
-    let symbol = builder.setup.symbol;
-    let stop = new MarketOrder(symbol, builder.setup.close(), share);
+function _ma_dynamic_stop(builder: PyramidBuilder, share: number): MarketOrder {
+    let stop = new MarketOrder(builder.setup.symbol, builder.setup.close(), share);
     stop.tif = "GTC";
-    stop.submit = `${symbol} STUDY '{tho=true};${mutex ? 'low >= ' + trailing.financial() + ' and ': ''}low < MovingAverage(data=close(period=AggregationPeriod.DAY)[1],length=10)*0.985;1m' IS TRUE`;
+    stop.submit = new Study(DecisiveUndercut.value(builder.bookkeeper.sma10_trailing).or(DecisiveUndercut.value(SMA_LAST.length(10))));
     stop.comment = "Undercut Moving Average";
     return stop;
 }
@@ -473,23 +465,31 @@ function _ma_dynamic_stop(builder: PyramidBuilder, share: number, mutex: boolean
 function _selling_into_weakness(builder: PyramidBuilder, share: number, stop: number, drawback: number): OrderOCO {
     let symbol = builder.setup.symbol;
     let oco = new OrderOCO();
-    let stops = [] as number[];
     oco.group.push(new StopOrder(symbol, builder.setup.close(), share, stop));
-    stops.push(stop);
     oco.group.slice(-1)[0].comment = "Round-Trip";
     oco.group.push(new TrailStopOrder(symbol, builder.setup.close(), share, builder.setup.long ? `MARK-${drawback.financial()}%` : `MARK+${drawback.financial()}%`));
+    let expr = [] as Expr[];
     if (builder.bookkeeper?.highest_high != null && builder.bookkeeper?.highest_high >= builder.setup.pivot * 1.1 && builder.setup.long) {
         let half_profit_stop = stop + (builder.bookkeeper?.highest_high - stop) / 2;
         let order = _stop_loss_order(builder, half_profit_stop, share);
         order.comment = "Protect Half Profit";
         oco.group.push(order);
-        stops.push(half_profit_stop);
+        expr.push((oco.group.slice(-1)[0].submit as Study).body as Expr);
     }
     if (builder.bookkeeper?.sma10_trailing != null) {
-        let ma_trailing_stop = builder.bookkeeper.sma10_trailing * 0.985;
-        stops.push(ma_trailing_stop);
-        oco.group.push(_ma_trailing_order(builder, null, share));
-        oco.group.push(_ma_dynamic_stop(builder, share, true, stops));
+        oco.group.push(_ma_dynamic_stop(builder, share));
+        expr.push((oco.group.slice(-1)[0].submit as Study).body as Expr);
+    }
+    if (expr.length > 0) {
+        let comments = [];
+        for (let i = 0; i < expr.length; ++i) {
+            comments.unshift(oco.group.pop().comment);
+        }
+        let order = new MarketOrder(symbol, builder.setup.close(), share);
+        order.tif = "GTC";
+        order.submit = new Study(new Or(...expr));
+        order.comment = comments.join(", ")
+        oco.group.push(order);
     }
     return oco;
 }
@@ -525,11 +525,16 @@ export function riding(builder: PyramidBuilder, params: any) {
             let multi = new MultiOCO();
             strategies.set(key, multi);
 
+            // @ts-ignore
             let shares = config.shares;
+            // @ts-ignore
             let target = evaluate(config.target);
+            // @ts-ignore
             let stop = config['support'];
             let drawback = Math.abs(((target / stop) - 1) / 2 * 100);
+            // @ts-ignore
             if (['half', 'third'].contains(config['part'])) {
+                // @ts-ignore
                 let keep = config['part'] == 'half' ? shares.half() : shares.one_third();
                 let amount = shares - keep;
                 let oco = _selling_into_weakness(builder, amount, stop, drawback);
@@ -537,12 +542,8 @@ export function riding(builder: PyramidBuilder, params: any) {
                 shares = keep;
             }
             let oco = _selling_into_weakness(builder, shares, stop, drawback);
-
             let reversal = new MarketOrder(symbol, builder.setup.close(), shares);
-            let conditions = close_range_condition.concat([
-                `plot Cond = Between(SecondsTillTime(935), ${(-390 + 935 - 930) * 60}, 0) and Between(SecondsTillTime(1600),0,${60}) and CloseRange < 0.6 and high(period=AggregationPeriod.DAY) >= ${(stop + (target - stop) * 0.6).financial()};`,
-            ]);
-            reversal.submit = `${symbol} STUDY '{tho=true};${conditions.map((x) => x.replace(";", "|$")).join("")};1m' IS TRUE`;
+            reversal.submit = new Study(new And(BeforeMarketClose, new BiExpr(ClsRange, '<', 0.6), new BiExpr('high(period=AggregationPeriod.DAY)', '>=', stop + (target - stop) * 0.6)));
             reversal.tif = "GTC";
             reversal.comment = "Downside Reversal";
             oco.group.unshift(reversal);
