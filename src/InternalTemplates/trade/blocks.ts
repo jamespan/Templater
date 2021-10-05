@@ -63,6 +63,9 @@ export const Between_High = new (class extends Call {
 export const BuyRange = Between_High;
 export const BuyRangeSMA = Between_High.of(new BiExpr(SMA, "+", 0.1), new BiExpr(SMA, "*", 1.05))
 
+export const BidAskSpread = new Expr("(ask/bid-1)*100");
+export const TightBidAskSpread = new BiExpr(BidAskSpread, '<', 0.5);
+
 
 if (module.id == ".") {
     // console.log(BuyRange.of(72.85, 72.85 * 1.05));

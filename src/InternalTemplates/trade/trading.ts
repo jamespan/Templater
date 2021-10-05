@@ -18,7 +18,7 @@ import {
     SMA,
     Undercut,
     DecisiveUndercut,
-    BuyRangeSMA, SMA_LAST, BeforeMarketClose, ClsRange
+    BuyRangeSMA, SMA_LAST, BeforeMarketClose, ClsRange, TightBidAskSpread
 } from "./blocks";
 
 const defaults = (o: any, v: any) => o != null ? o : v;
@@ -242,17 +242,25 @@ class Pyramid {
             }
             this.limit = this.builder.setup.pivot * (100 + upper).percent();
             primary.trigger = new LimitOrder(symbol, this.builder.setup.open(), this.share, `MARK+0.00%`);
-            let condition = AvoidMarketOpenVolatile as Expr;
-            if (this.builder.setup.pattern.contains('Pullback')) {
-                condition = condition.and(BuyRangeSMA);
-            } else {
-                condition = condition.and(BuyRange.of(this.price, this.limit));
+            if (this.builder.config.trigger_order_type == 'MKT') {
+                primary.trigger = new MarketOrder(symbol, this.builder.setup.open(), this.share);
+                primary.trigger.tif = 'GTC';
             }
+            let conditions = [AvoidMarketOpenVolatile] as Expr[];
+            if (this.builder.setup.pattern.contains('Pullback')) {
+                conditions.push(BuyRangeSMA);
+            } else {
+                conditions.push(BuyRange.of(this.price, this.limit));
+            }
+            if (primary.trigger instanceof MarketOrder) {
+                conditions.push(TightBidAskSpread);
+            }
+
             if (this.builder.config?.estimate && this.builder.config.volume != null) {
                 let avg = parseInt(this.builder.config.volume.split(',').join(''));
-                condition = condition.and(HugeVolume.over(`(${avg}*1.4)`));
+                conditions.push(HugeVolume.over(`(${avg}*1.4)`));
             }
-            primary.trigger.submit = new Study(condition);
+            primary.trigger.submit = new Study(new And(...conditions));
         } else {
             primary.trigger = new StopLimitOrder(symbol, this.builder.setup.open(), this.share, this.price, this.limit);
             if (!this.builder.setup.long) {

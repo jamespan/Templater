@@ -53,7 +53,8 @@ class ConditionalOrder {
         expression += ` WHEN ${this.submit}`;
       }
     }
-    if (this.cancel != null) {
+    // MARKET order may not have cancel conditions.
+    if (this.cancel != null && !(this instanceof MarketOrder)) {
       expression += ` CANCEL IF ${this.cancel}`;
     }
     if (this.comment != null) {
