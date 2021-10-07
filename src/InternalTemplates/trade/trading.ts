@@ -1,24 +1,26 @@
 import {
-    MarketOrder,
     LimitOrder,
-    OrderOCO,
-    StopLimitOrder,
+    MarketOrder,
     MultiOCO,
+    OrderOCO,
     OrderOTOCO,
-    TrailStopOrder,
-    StopOrder
+    StopLimitOrder,
+    StopOrder,
+    TrailStopOrder
 } from "./order"
 import {evaluate} from "mathjs";
 import {And, BiExpr, Expr, Or, Study} from "./thinkscript";
 import {
-    BuyRange,
     AvoidMarketOpenVolatile,
-    HugeVolume,
-    VolumeEstimate,
-    SMA,
-    Undercut,
+    BeforeMarketClose,
+    BuyRange,
+    BuyRangeSMA,
+    ClsRange,
     DecisiveUndercut,
-    BuyRangeSMA, SMA_LAST, BeforeMarketClose, ClsRange, TightBidAskSpread
+    HugeVolume, PassThrough,
+    SellRange,
+    SMA_LAST,
+    Undercut, UpsideReversal
 } from "./blocks";
 
 const defaults = (o: any, v: any) => o != null ? o : v;
@@ -202,10 +204,6 @@ class Pyramid {
         }
         this.price = (100 + offset).percent() * builder.setup.pivot;
         this.limit = Math.min(this.price + 0.5, (100 + offset + 0.2).percent() * builder.setup.pivot);
-        // this.limit = this.price;
-        if (!this.builder.setup.long) {
-            this.limit = this.price;
-        }
         this.share = Math.round(this.position / this.limit);
         if (trade != null && trade.indexOf('@') !== -1) {
             let parts = trade.split('@', 2);
@@ -235,25 +233,25 @@ class Pyramid {
         let primary = new OrderOTOCO();
         this.primary = primary;
         let symbol = this.builder.setup.symbol;
-        if (this.builder.config['dynamic'] && this.limit !== this.price) {
+        if (this.builder.config?.dynamic && this.limit !== this.price) {
             let upper = [1.25, 3.25, 5][this.number];
             if (this.builder.config.count === 1) {
                 upper = this.builder.setup.range;
             }
-            this.limit = this.builder.setup.pivot * (100 + upper).percent();
+            this.limit = this.builder.setup.pivot * (100 + upper * (this.builder.setup.long ? 1 : -1)).percent();
             primary.trigger = new LimitOrder(symbol, this.builder.setup.open(), this.share, `MARK+0.00%`);
-            if (this.builder.config.trigger_order_type == 'MKT') {
+            if (this.builder.config.trigger_order_type == 'MKT' || !this.builder.setup.long) {
                 primary.trigger = new MarketOrder(symbol, this.builder.setup.open(), this.share);
                 primary.trigger.tif = 'GTC';
             }
             let conditions = [AvoidMarketOpenVolatile] as Expr[];
             if (this.builder.setup.pattern.contains('Pullback')) {
                 conditions.push(BuyRangeSMA);
+                if (!this.builder.config.reversal) {
+                    conditions.push(UpsideReversal);
+                }
             } else {
-                conditions.push(BuyRange.of(this.price, this.limit));
-            }
-            if (primary.trigger instanceof MarketOrder) {
-                conditions.push(TightBidAskSpread);
+                conditions.push(this.builder.setup.long? BuyRange.of(this.price, this.limit) : SellRange.of(this.limit, this.price));
             }
 
             if (this.builder.config?.estimate && this.builder.config.volume != null) {
@@ -273,7 +271,7 @@ class Pyramid {
         primary.group.slice(-1)[0].comment = "Profit Taking";
 
 
-        if (this.builder.bookkeeper?.sma10_trailing != null && this.limit === this.price) {
+        if (this.builder.bookkeeper?.sma10_trailing != null && this.limit === this.price && this.builder.setup.long) {
             primary.group.push(_ma_dynamic_stop(this.builder, this.share));
             primary.group.slice(-1)[0].loss = Math.max((this.price - this.builder.bookkeeper?.sma10_trailing * 0.985) * this.share, 0);
         }
@@ -300,10 +298,10 @@ class Pyramid {
         if (this.limit !== this.price) {
             primary.group.push(new StopOrder(symbol, this.builder.setup.close(), this.share, `TRG${this.builder.setup.long ? "-" : "+"}${this.builder.risk.risk.financial()}%`));
         } else {
-            if (this.builder.config.cond_sl == true && this.builder.setup.long) {
+            if (this.builder.config.cond_sl) {
                 let stop = new MarketOrder(symbol, this.builder.setup.close(), this.share)
                 stop.tif = "GTC";
-                stop.submit = new Study(Undercut.value(this.stop));
+                stop.submit = new Study(this.builder.setup.long? Undercut.value(this.stop): PassThrough.value(this.stop));
                 stop.cancel = cond;
                 primary.group.push(stop);
             } else {

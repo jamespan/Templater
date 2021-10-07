@@ -29,6 +29,12 @@ export const DecisiveUndercut = new (class extends BiExpr {
     }
 })('low', '<', 1);
 
+export const PassThrough = new (class extends BiExpr {
+    value(value: any): BiExpr {
+        return super.with(value);
+    }
+})('high', '>', 1);
+
 export const AvoidMarketOpenVolatile = new VarExpr((x) => {
     let delay_minutes = (Math.floor(x / 100) - 9) * 60 + (x % 100 - 30);
     return `Between(SecondsTillTime(${x}), ${(-390 + delay_minutes) * 60}, 0)`;
@@ -60,12 +66,22 @@ export const Between_High = new (class extends Call {
     }
 })("Between", "high");
 
+export const Between_Low = new (class extends Call {
+    of(from: any, to: any): Call {
+        return super.withParams("low", ...([from, to].map((x) => typeof x == 'number' ? x.financial() : x)));
+    }
+})("Between", "low");
+
 export const BuyRange = Between_High;
+export const SellRange = Between_Low;
 export const BuyRangeSMA = Between_High.of(new BiExpr(SMA, "+", 0.1), new BiExpr(SMA, "*", 1.05))
 
+// condition not support bid ask
 export const BidAskSpread = new Expr("(ask/bid-1)*100");
 export const TightBidAskSpread = new BiExpr(BidAskSpread, '<', 0.5);
 
+export const TodayLowUndercutPrevLow = new BiExpr("low(period=AggregationPeriod.DAY)", '<', 'low(period=AggregationPeriod.DAY)[1]');
+export const UpsideReversal = TodayLowUndercutPrevLow.and(PassThrough.value('high(period=AggregationPeriod.DAY)[1]+0.1'));
 
 if (module.id == ".") {
     // console.log(BuyRange.of(72.85, 72.85 * 1.05));
