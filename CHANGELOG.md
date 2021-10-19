@@ -2,6 +2,107 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [1.9.9](https://github.com/SilentVoid13/Templater/compare/1.9.8...1.9.9) (2021-10-03)
+
+
+### Features
+
+* **cursorjumper:** adding a setting to enable automatic cursor jumping after template insertion ([6bf2de1](https://github.com/SilentVoid13/Templater/commit/6bf2de174b4a8fbb187a3be8571288d037561524)), closes [#359](https://github.com/SilentVoid13/Templater/issues/359) [#393](https://github.com/SilentVoid13/Templater/issues/393)
+
+
+### Bug Fixes
+
+* Root template not resolving ([#395](https://github.com/SilentVoid13/Templater/issues/395)) ([e800c21](https://github.com/SilentVoid13/Templater/commit/e800c21ed0fa346fd02b5290458d70791ee6d20e))
+
+### [1.9.8](https://github.com/SilentVoid13/Templater/compare/1.9.7...1.9.8) (2021-09-30)
+
+
+### Bug Fixes
+
+* fixing typo bug ([2cf1486](https://github.com/SilentVoid13/Templater/commit/2cf148608c4460446d62c8d16f5bc2f7f1aeffea))
+
+### [1.9.7](https://github.com/SilentVoid13/Templater/compare/1.9.6...1.9.7) (2021-09-30)
+
+
+### Bug Fixes
+
+* fixing invalid const declaration, causing errors in user system commands ([2ca59f0](https://github.com/SilentVoid13/Templater/commit/2ca59f05b04caa7c1d4bdde9e33ea95a89df8dcf)), closes [#391](https://github.com/SilentVoid13/Templater/issues/391) [#392](https://github.com/SilentVoid13/Templater/issues/392)
+
+### [1.9.6](https://github.com/SilentVoid13/Templater/compare/1.9.5...1.9.6) (2021-09-30)
+
+
+### Features
+
+* **settings:** improving styles of settings, adding a few forgotten save_settings ([94140f3](https://github.com/SilentVoid13/Templater/commit/94140f38992d4981f98bcaf3abbdecdae18255ef)), closes [#390](https://github.com/SilentVoid13/Templater/issues/390)
+
+### [1.9.5](https://github.com/SilentVoid13/Templater/compare/1.9.4...1.9.5) (2021-09-29)
+
+
+### Features
+
+* Folder Templates ([#384](https://github.com/SilentVoid13/Templater/issues/384)) ([3eb60d8](https://github.com/SilentVoid13/Templater/commit/3eb60d84aa8d78c7b294d2b31c471d7a41064914)), closes [#326](https://github.com/SilentVoid13/Templater/issues/326)
+
+### [1.9.4](https://github.com/SilentVoid13/Templater/compare/1.9.3...1.9.4) (2021-09-28)
+
+### [1.9.3](https://github.com/SilentVoid13/Templater/compare/1.9.2...1.9.3) (2021-09-28)
+
+
+### Bug Fixes
+
+* fixing "User Scripts folder doesn't exist", replacing string checks with proper truthy checks ([4a4fc45](https://github.com/SilentVoid13/Templater/commit/4a4fc45ea7195e3a6bb24c8d429a4d363fd8e692))
+* **tests:** reverting to a previous version of rollup, chai wasn't working otherwise ([e295d51](https://github.com/SilentVoid13/Templater/commit/e295d51ac68ffddb7f35479ee1882455c76f499c))
+
+### [1.9.2](https://github.com/SilentVoid13/Templater/compare/1.9.1...1.9.2) (2021-09-26)
+
+
+### Bug Fixes
+
+* fixing startup templates bug, forgot to wait for files to be created before executing them ([3a0a21d](https://github.com/SilentVoid13/Templater/commit/3a0a21d6bdcd4d40e4975242d44d738452edcf24))
+
+### [1.9.1](https://github.com/SilentVoid13/Templater/compare/1.9.0...1.9.1) (2021-09-26)
+
+
+### Bug Fixes
+
+* fixing startup templates bug, forgot to check for empty strings ([7304f3f](https://github.com/SilentVoid13/Templater/commit/7304f3f1c9cff32f6cd120602abc0b39b8f54027))
+
+## [1.9.0](https://github.com/SilentVoid13/Templater/compare/1.8.1...1.9.0) (2021-09-26)
+
+
+### Features
+
+* adding active_file config option and fixing folder newFileLocation ([bb3fa5a](https://github.com/SilentVoid13/Templater/commit/bb3fa5a4b3cf9bc8cd9054679ed4a2799e25184a))
+* adding better colors for light themes when syntax highlighting, was a bit unreadable until now ([b4f23e4](https://github.com/SilentVoid13/Templater/commit/b4f23e4d3c6cd7d554cc8cc76b1552a05671b03c)), closes [#268](https://github.com/SilentVoid13/Templater/issues/268) [#303](https://github.com/SilentVoid13/Templater/issues/303)
+* **fuzzysuggester:** adding a new placeholder for fuzzysuggester ([2d734b6](https://github.com/SilentVoid13/Templater/commit/2d734b6652c76f4390f33eb8563b05a3412c148c)), closes [#352](https://github.com/SilentVoid13/Templater/issues/352)
+* **settings:** adding a way to add hotkeys for templates in settings ([34bae3f](https://github.com/SilentVoid13/Templater/commit/34bae3f11a0231ec0f744813a2ebb22e00f5ac76))
+* **settings:** adding startup templates ([920b707](https://github.com/SilentVoid13/Templater/commit/920b70762a0d712d69e284cd1b292d4f9ab233e5))
+* **settings:** adding suggesters in settings for template folder, empty file, user scripts folders ([3b59e74](https://github.com/SilentVoid13/Templater/commit/3b59e74a0637dc8d509d170dab103b7b14768382))
+
+
+### Bug Fixes
+
+* fixing small naming errors ([e250bd2](https://github.com/SilentVoid13/Templater/commit/e250bd2aa589473a8c28717e0653b5e2e1883ab3))
+* fixing the "edit this page" button for documentation ([e6a8f94](https://github.com/SilentVoid13/Templater/commit/e6a8f946cc233b03a7cae420cce933fcd3607c22)), closes [#300](https://github.com/SilentVoid13/Templater/issues/300)
+* **tp.file.include:** fixing tp.file.include incorrect depth_limit ([7a202a4](https://github.com/SilentVoid13/Templater/commit/7a202a407be19f376e12dfa9cd393bf6dc8fc8a1))
+
+### [1.8.1](https://github.com/SilentVoid13/Templater/compare/1.8.0...1.8.1) (2021-06-17)
+
+
+### Bug Fixes
+
+* fixing edge case with code blocks and syntax highlighting ([c42b56d](https://github.com/SilentVoid13/Templater/commit/c42b56dda80999833356b836895e8c1a43d3f758))
+
+## [1.8.0](https://github.com/SilentVoid13/Templater/compare/1.7.1...1.8.0) (2021-06-17)
+
+
+### Features
+
+* adding 3 new tp.file internal functions ([c26e4c1](https://github.com/SilentVoid13/Templater/commit/c26e4c1a5c18f48d6428dc4ee9f6b3a4d889e6c0))
+* adding placeholder argument for tp.system.suggester ([e0b288c](https://github.com/SilentVoid13/Templater/commit/e0b288cb1fcbab1860aba99eefb5bc700994b72a)), closes [#264](https://github.com/SilentVoid13/Templater/issues/264)
+* adding syntax highlighting for Templater commands ([2628197](https://github.com/SilentVoid13/Templater/commit/26281976fce88107fa05e9d2b278b0f248f5f547)), closes [#222](https://github.com/SilentVoid13/Templater/issues/222)
+* disabling template replacement on new files in the specified templates folder ([26eafb0](https://github.com/SilentVoid13/Templater/commit/26eafb0c59fd65a2d15714f89d834fdad81eec5d)), closes [#244](https://github.com/SilentVoid13/Templater/issues/244)
+* updating tp.file internal functions ([7a00bf8](https://github.com/SilentVoid13/Templater/commit/7a00bf8a12f27a9f50a55fd00709ef15c07c7a3c))
+
 ### [1.7.1](https://github.com/SilentVoid13/Templater/compare/1.7.0...1.7.1) (2021-05-23)
 
 
