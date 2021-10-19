@@ -247,7 +247,7 @@ class Pyramid {
             let conditions = [AvoidMarketOpenVolatile] as Expr[];
             if (this.builder.setup.pattern.contains('Pullback')) {
                 conditions.push(BuyRangeSMA);
-                if (!this.builder.config.reversal) {
+                if (this.builder.config.reversal ?? true) {
                     conditions.push(UpsideReversal);
                 }
             } else {
