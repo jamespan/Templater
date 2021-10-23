@@ -8,7 +8,7 @@ import {
     StopOrder,
     TrailStopOrder
 } from "./order"
-import {evaluate} from "mathjs";
+import {evaluate, isNaN} from "mathjs";
 import {And, BiExpr, Expr, Or, Study} from "./thinkscript";
 import {
     AvoidMarketOpenVolatile,
@@ -284,12 +284,15 @@ class Pyramid {
             this.protect = Math.max(this.price + (this.price - this.stop) * 2, this.protect);
         }
         let cond = `${symbol} MARK AT OR ${this.builder.setup.long ? "ABOVE" : "BELOW"} ${this.protect.financial()}`;
-
+        let highest_high = this.builder.bookkeeper?.highest_high ?? 0;
         if (this.limit === this.price) {
             primary.group.push(new TrailStopOrder(symbol, this.builder.setup.close(), this.share, this.builder.setup.long ? `MARK-${(this.builder.risk.profit / 2).financial()}%` : `MARK+${(this.builder.risk.profit / 2).financial()}%`));
             primary.group.slice(-1)[0].comment = "Protect Half Profit";
             primary.group.push(new StopOrder(symbol, this.builder.setup.close(), this.share, this.limit));
             primary.group.slice(-1)[0].submit = cond;
+            if (highest_high >= this.protect) {
+                primary.group.slice(-1)[0].submit = null;
+            }
         } else {
             primary.group.push(new TrailStopOrder(symbol, this.builder.setup.close(), this.share, this.builder.setup.long ? `MARK-${(this.builder.risk.risk * 2).financial()}%` : `MARK+${(this.builder.risk.risk * 2).financial()}%`));
         }
@@ -320,10 +323,15 @@ class Pyramid {
         }
         primary.group.slice(-1)[0].comment = "Initial Stop-Loss";
         primary.group.slice(-1)[0].loss = (this.limit * this.builder.risk.risk / 100) * this.share;
-        for (let i = primary.group.length - 2; i >= 0; --i) {
-            if (!isNaN(primary.group[i].loss) && primary.group[i].loss < primary.group.slice(-1)[0].loss) {
-                primary.group.pop()
-                break
+
+        if (highest_high > this.protect) {
+            primary.group.pop();
+        } else {
+            let better_sl = primary.group.slice(0, -1).filter((o) => {
+                return !isNaN(o.loss) && o.loss <= primary.group.slice(-1)[0].loss;
+            });
+            if (better_sl.length > 0) {
+                primary.group.pop();
             }
         }
     }
