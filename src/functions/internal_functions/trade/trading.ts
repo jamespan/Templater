@@ -294,6 +294,15 @@ class Pyramid {
             primary.group.push(new TrailStopOrder(symbol, this.builder.setup.close(), this.share, this.builder.setup.long ? `MARK-${(this.builder.risk.risk * 2).financial()}%` : `MARK+${(this.builder.risk.risk * 2).financial()}%`));
         }
         primary.group.slice(-1)[0].comment = "Round-Trip";
+        if (this.limit === this.price && this.builder.setup.long) {
+            let ma_trailing_stop = (this.builder.bookkeeper?.sma10_trailing ?? 0) * 0.985;
+            if (this.builder.setup.long && ma_trailing_stop > this.limit) {
+                primary.group.pop();
+            }
+            if (!this.builder.setup.long && ma_trailing_stop < this.limit) {
+                primary.group.pop();
+            }
+        }
 
         if (this.limit !== this.price) {
             primary.group.push(new StopOrder(symbol, this.builder.setup.close(), this.share, `TRG${this.builder.setup.long ? "-" : "+"}${this.builder.risk.risk.financial()}%`));
@@ -311,6 +320,12 @@ class Pyramid {
         }
         primary.group.slice(-1)[0].comment = "Initial Stop-Loss";
         primary.group.slice(-1)[0].loss = (this.limit * this.builder.risk.risk / 100) * this.share;
+        for (let i = primary.group.length - 2; i >= 0; --i) {
+            if (!isNaN(primary.group[i].loss) && primary.group[i].loss < primary.group.slice(-1)[0].loss) {
+                primary.group.pop()
+                break
+            }
+        }
     }
 
     exit() {
