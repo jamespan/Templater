@@ -292,6 +292,7 @@ class Pyramid {
             primary.group.slice(-1)[0].submit = cond;
             if (highest_high >= this.protect) {
                 primary.group.slice(-1)[0].submit = null;
+                primary.group.slice(-1)[0].loss = 0;
             }
         } else {
             primary.group.push(new TrailStopOrder(symbol, this.builder.setup.close(), this.share, this.builder.setup.long ? `MARK-${(this.builder.risk.risk * 2).financial()}%` : `MARK+${(this.builder.risk.risk * 2).financial()}%`));
