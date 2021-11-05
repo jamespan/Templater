@@ -102,7 +102,7 @@ export const HalfProfit = new (class extends VarExpr {
 })((args) => {
     let cost = args[0] as number;
     let highest_high = args[1] as number;
-    return `${Highest_High.of(highest_high)}+${cost?.financial()})/2`;
+    return `(${Highest_High.of(highest_high)}+${cost?.financial()})/2`;
 }, 0, 0, 0);
 
 if (module.id == ".") {
