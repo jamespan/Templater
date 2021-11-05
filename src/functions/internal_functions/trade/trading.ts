@@ -16,7 +16,7 @@ import {
     BuyRange,
     BuyRangeSMA,
     ClsRange,
-    DecisiveUndercut, HalfProfit,
+    DecisiveUndercut, HalfProfit, Highest_High,
     HugeVolume, PassThrough,
     SellRange,
     SMA_LAST,
@@ -286,7 +286,14 @@ class Pyramid {
         let cond = `${symbol} MARK AT OR ${this.builder.setup.long ? "ABOVE" : "BELOW"} ${this.protect.financial()}`;
         let highest_high = this.builder.bookkeeper?.highest_high ?? 0;
         if (this.limit === this.price) {
-            primary.group.push(new TrailStopOrder(symbol, this.builder.setup.close(), this.share, this.builder.setup.long ? `MARK-${(this.builder.risk.profit / 2).financial()}%` : `MARK+${(this.builder.risk.profit / 2).financial()}%`));
+            if (this.builder.setup.long && this.builder.config.cond_sl == true && highest_high > 0) {
+                let half_profit_stop = HalfProfit.with(this.price, highest_high);
+                let order = _stop_loss_order(this.builder, half_profit_stop, this.share);
+                (order.submit as Study).body = new And((order.submit as Study).body as Expr, new BiExpr(Highest_High.of(highest_high), ">=", `${this.price.financial()}*1.1`))
+                primary.group.push(order);
+            } else {
+                primary.group.push(new TrailStopOrder(symbol, this.builder.setup.close(), this.share, this.builder.setup.long ? `MARK-${(this.builder.risk.profit / 2).financial()}%` : `MARK+${(this.builder.risk.profit / 2).financial()}%`));
+            }
             primary.group.slice(-1)[0].comment = "Protect Half Profit";
             primary.group.push(new StopOrder(symbol, this.builder.setup.close(), this.share, this.limit));
             primary.group.slice(-1)[0].submit = cond;
@@ -499,7 +506,7 @@ function _selling_into_weakness(builder: PyramidBuilder, share: number, stop: nu
     oco.group.slice(-1)[0].comment = "Round-Trip";
     let expr = [] as Expr[];
     if ((builder.bookkeeper?.highest_high ?? 0) >= builder.setup.pivot * 1.1 && builder.setup.long) {
-        let half_profit_stop = HalfProfit.with(stop, target, builder.bookkeeper?.highest_high);
+        let half_profit_stop = HalfProfit.with(stop, builder.bookkeeper?.highest_high);
         let order = _stop_loss_order(builder, half_profit_stop, share);
         order.comment = "Protect Half Profit";
         oco.group.push(order);
