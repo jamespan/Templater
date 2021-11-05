@@ -89,8 +89,19 @@ export const PriceUp = new (class extends BiExpr {
     }
 })("close(period=AggregationPeriod.DAY)[1]", '<=', 1);
 
+export const HalfProfit = new (class extends VarExpr {
+    with(cost: number, target: number, highest_high: number): VarExpr {
+        return super.withParams(cost, target, highest_high);
+    }
+})((args) => {
+    let cost = args[0] as number;
+    let target = args[1] as number;
+    let highest_high = args[2] as number;
+    return `(Max(Max(${target?.financial()},${highest_high?.financial()}),high(period=AggregationPeriod.DAY))+${cost?.financial()})/2`;
+}, 0, 0, 0);
+
 if (module.id == ".") {
     // console.log(BuyRange.of(72.85, 72.85 * 1.05));
     // console.log(AvoidMarketOpenVolatile.and(BuyRangeSMA).and(HugeVolume.over("26185800*1.4")));
-    console.log(BeforeMarketClose);
+    console.log(HalfProfit.with(100, 200, 210));
 }

@@ -16,7 +16,7 @@ import {
     BuyRange,
     BuyRangeSMA,
     ClsRange,
-    DecisiveUndercut,
+    DecisiveUndercut, HalfProfit,
     HugeVolume, PassThrough,
     SellRange,
     SMA_LAST,
@@ -468,7 +468,7 @@ export function checking(pyramids: Array<Pyramid>) {
 }
 
 
-function _stop_loss_order(builder: PyramidBuilder, stop: number, share: number, cost: number = null, data = 'low'): MarketOrder | StopOrder {
+function _stop_loss_order(builder: PyramidBuilder, stop: number | Expr, share: number, cost: number = null): MarketOrder | StopOrder {
     let symbol = builder.setup.symbol;
     let order: MarketOrder | StopOrder;
     if (builder.config.cond_sl == true && builder.setup.long) {
@@ -476,9 +476,9 @@ function _stop_loss_order(builder: PyramidBuilder, stop: number, share: number, 
         order.tif = "GTC";
         order.submit = new Study(Undercut.value(stop));
     } else {
-        order = new StopOrder(symbol, builder.setup.close(), share, stop);
+        order = new StopOrder(symbol, builder.setup.close(), share, typeof stop == "number" ? stop : stop.toString());
     }
-    if (cost !== null) {
+    if (cost !== null && typeof stop == "number") {
         order.loss = Math.max((cost - stop) * share, 0);
     }
     return order;
@@ -492,19 +492,20 @@ function _ma_dynamic_stop(builder: PyramidBuilder, share: number): MarketOrder {
     return stop;
 }
 
-function _selling_into_weakness(builder: PyramidBuilder, share: number, stop: number, drawback: number): OrderOCO {
+function _selling_into_weakness(builder: PyramidBuilder, share: number, stop: number, drawback: number, target: number): OrderOCO {
     let symbol = builder.setup.symbol;
     let oco = new OrderOCO();
     oco.group.push(new StopOrder(symbol, builder.setup.close(), share, stop));
     oco.group.slice(-1)[0].comment = "Round-Trip";
-    oco.group.push(new TrailStopOrder(symbol, builder.setup.close(), share, builder.setup.long ? `MARK-${drawback.financial()}%` : `MARK+${drawback.financial()}%`));
     let expr = [] as Expr[];
-    if (builder.bookkeeper?.highest_high != null && builder.bookkeeper?.highest_high >= builder.setup.pivot * 1.1 && builder.setup.long) {
-        let half_profit_stop = stop + (builder.bookkeeper?.highest_high - stop) / 2;
+    if ((builder.bookkeeper?.highest_high ?? 0) >= builder.setup.pivot * 1.1 && builder.setup.long) {
+        let half_profit_stop = HalfProfit.with(stop, target, builder.bookkeeper?.highest_high);
         let order = _stop_loss_order(builder, half_profit_stop, share);
         order.comment = "Protect Half Profit";
         oco.group.push(order);
         expr.push((oco.group.slice(-1)[0].submit as Study).body as Expr);
+    } else {
+        oco.group.push(new TrailStopOrder(symbol, builder.setup.close(), share, builder.setup.long ? `MARK-${drawback.financial()}%` : `MARK+${drawback.financial()}%`));
     }
     if (builder.bookkeeper?.sma10_trailing != null) {
         oco.group.push(_ma_dynamic_stop(builder, share));
@@ -567,11 +568,11 @@ export function riding(builder: PyramidBuilder, params: any) {
                 // @ts-ignore
                 let keep = config['part'] == 'half' ? shares.half() : shares.one_third();
                 let amount = shares - keep;
-                let oco = _selling_into_weakness(builder, amount, stop, drawback);
+                let oco = _selling_into_weakness(builder, amount, stop, drawback, target);
                 multi.orders.push(oco);
                 shares = keep;
             }
-            let oco = _selling_into_weakness(builder, shares, stop, drawback);
+            let oco = _selling_into_weakness(builder, shares, stop, drawback, target);
             let reversal = new MarketOrder(symbol, builder.setup.close(), shares);
             reversal.submit = new Study(new And(BeforeMarketClose, new BiExpr(ClsRange, '<', 0.6), new BiExpr('high(period=AggregationPeriod.DAY)', '>=', stop + (target - stop) * 0.6)));
             reversal.tif = "GTC";
