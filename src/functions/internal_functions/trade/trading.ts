@@ -561,7 +561,7 @@ export function riding(builder: PyramidBuilder, params: any) {
             let target = evaluate(config.target);
             // @ts-ignore
             let stop = config['support'];
-            let drawback = Math.abs(((target / stop) - 1) / 2 * 100);
+            let drawback = Math.abs(((Math.max(builder.bookkeeper?.highest_high ?? 0, target) / stop) - 1) / 2 * 100);
             // @ts-ignore
             if (['half', 'third'].contains(config['part'])) {
                 // @ts-ignore

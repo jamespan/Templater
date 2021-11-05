@@ -83,6 +83,12 @@ export const TightBidAskSpread = new BiExpr(BidAskSpread, '<', 0.5);
 export const TodayLowUndercutPrevLow = new BiExpr("low(period=AggregationPeriod.DAY)", '<', 'low(period=AggregationPeriod.DAY)[1]');
 export const UpsideReversal = TodayLowUndercutPrevLow.and(PassThrough.value('high(period=AggregationPeriod.DAY)[1]+0.1'));
 
+export const PriceUp = new (class extends BiExpr {
+    over(value: any): BiExpr {
+        return super.with(value);
+    }
+})("close(period=AggregationPeriod.DAY)[1]", '<=', 1);
+
 if (module.id == ".") {
     // console.log(BuyRange.of(72.85, 72.85 * 1.05));
     // console.log(AvoidMarketOpenVolatile.and(BuyRangeSMA).and(HugeVolume.over("26185800*1.4")));
