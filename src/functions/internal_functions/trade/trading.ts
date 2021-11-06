@@ -270,6 +270,13 @@ class Pyramid {
         primary.group.slice(-1)[0].profit = (this.take - this.limit) * this.share * (this.builder.setup.long ? 1 : -1);
         primary.group.slice(-1)[0].comment = "Profit Taking";
 
+        if (this.builder.config.sell_without_cushion ?? false) {
+            let order = new MarketOrder(symbol, this.builder.setup.close(), this.share);
+            order.tif = "GTC";
+            order.submit = new Study(new And(BeforeMarketClose, Undercut.value(`${this.price.financial()}*1.05`)));
+            order.comment = "Exit without enough Cushion"
+            primary.group.push(order);
+        }
 
         if (this.builder.bookkeeper?.sma10_trailing != null && this.limit === this.price && this.builder.setup.long) {
             primary.group.push(_ma_dynamic_stop(this.builder, this.share));
