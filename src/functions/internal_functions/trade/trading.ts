@@ -297,12 +297,14 @@ class Pyramid {
                 primary.group.slice(-1)[0].submit = null;
                 primary.group.slice(-1)[0].loss = 0;
             }
+            primary.group.slice(-1)[0].comment = "Round-Trip";
         } else {
             if (this.builder.risk.isPercentage) {
                 primary.group.push(new TrailStopOrder(symbol, this.builder.setup.close(), this.share, this.builder.setup.long ? `MARK-${(this.builder.risk.risk * 2).financial()}%` : `MARK+${(this.builder.risk.risk * 2).financial()}%`));
+                primary.group.slice(-1)[0].comment = "Round-Trip";
             }
         }
-        primary.group.slice(-1)[0].comment = "Round-Trip";
+
         if (this.limit === this.price && this.builder.setup.long) {
             let ma_trailing_stop = (this.builder.bookkeeper?.sma10_trailing ?? 0) * 0.985;
             if (this.builder.setup.long && ma_trailing_stop > this.limit) {
