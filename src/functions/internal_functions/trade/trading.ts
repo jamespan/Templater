@@ -127,39 +127,28 @@ class Risk {
     public position: any;
     public profit: any;
     public take: any;
+    public isPercentage: boolean;
 
-    constructor(assets: any, setup: any, trades: any, layer: number) {
+    constructor(style: string, assets: any, setup: any, trades: any, layer: number) {
         assets = evaluate(assets);
         this.setup = setup
-        const percentageStopLoss = (typeof setup.stop === 'string' || setup.stop instanceof String) && setup.stop.endsWith('%');
-        if (percentageStopLoss) {
+        this.isPercentage = (typeof setup.stop === 'string' || setup.stop instanceof String) && setup.stop.endsWith('%');
+        if (this.isPercentage) {
             this.risk = parseFloat(setup.stop.slice(0, -1));
             setup.stop = setup.pivot * (100 - this.risk * (this.setup.long ? 1 : -1)).percent()
             this.position = assets / 10 * this.setup.scale;
         } else {
-            let x = setup.pivot
-            if (trades != null && trades.length === layer) {
-                let invested = 0;
-                let shares = 0;
-                for (let i = 0; i < trades.length; ++i) {
-                    let parts = trades[i].split('@', 2);
-                    shares += parseInt(parts[0]);
-                    invested += parseInt(parts[0]) * parseFloat(parts[1]);
-                }
-                x = invested / shares;
+            this.risk = (1 - setup.stop / setup.pivot) * 100;
+            if (style == "swing") {
+                this.position = assets / 100 / this.risk.percent();
+                // round swing position size to fit 10 parts
+                let part = assets / 10;
+                let times = Math.round(this.position / part);
+                times = Math.min(times, 2);
+                this.position = times * part;
+            } else {
+                this.position = assets / 10 * this.setup.scale;
             }
-            // https://www.wolframalpha.com/
-            // Simplify[z=(1.0125x-y)/(1.0125x)*0.5+(1.0325x-y)/(1.0325x)*0.3+(1.05x-y)/(1.05x)*0.2]
-            this.risk = (1 - 0.97486 * setup.stop / x) * 100;
-            if (layer === 1 || (trades != null && trades.length === layer)) {
-                this.risk = (1 - setup.stop / x) * 100;
-            }
-            this.position = assets / 100 / this.risk.percent();
-            // round swing position size to fit 10 parts
-            let part = assets / 10;
-            let times = Math.round(this.position / part);
-            times = Math.min(times, 2);
-            this.position = times * part;
         }
         this.profit = Math.min(this.risk * 3, 24);
         this.profit = Math.max(10, this.profit);
@@ -251,7 +240,7 @@ class Pyramid {
                     conditions.push(UpsideReversal);
                 }
             } else {
-                conditions.push(this.builder.setup.long? BuyRange.of(this.price, this.limit) : SellRange.of(this.limit, this.price));
+                conditions.push(this.builder.setup.long ? BuyRange.of(this.price, this.limit) : SellRange.of(this.limit, this.price));
             }
 
             if (this.builder.config?.estimate && this.builder.config.volume != null) {
@@ -309,7 +298,9 @@ class Pyramid {
                 primary.group.slice(-1)[0].loss = 0;
             }
         } else {
-            primary.group.push(new TrailStopOrder(symbol, this.builder.setup.close(), this.share, this.builder.setup.long ? `MARK-${(this.builder.risk.risk * 2).financial()}%` : `MARK+${(this.builder.risk.risk * 2).financial()}%`));
+            if (this.builder.risk.isPercentage) {
+                primary.group.push(new TrailStopOrder(symbol, this.builder.setup.close(), this.share, this.builder.setup.long ? `MARK-${(this.builder.risk.risk * 2).financial()}%` : `MARK+${(this.builder.risk.risk * 2).financial()}%`));
+            }
         }
         primary.group.slice(-1)[0].comment = "Round-Trip";
         if (this.limit === this.price && this.builder.setup.long) {
@@ -322,13 +313,13 @@ class Pyramid {
             }
         }
 
-        if (this.limit !== this.price) {
+        if (this.limit !== this.price && this.builder.risk.isPercentage) {
             primary.group.push(new StopOrder(symbol, this.builder.setup.close(), this.share, `TRG${this.builder.setup.long ? "-" : "+"}${this.builder.risk.risk.financial()}%`));
         } else {
             if (this.builder.config.cond_sl) {
                 let stop = new MarketOrder(symbol, this.builder.setup.close(), this.share)
                 stop.tif = "GTC";
-                stop.submit = new Study(this.builder.setup.long? Undercut.value(this.stop): PassThrough.value(this.stop));
+                stop.submit = new Study(this.builder.setup.long ? Undercut.value(this.stop) : PassThrough.value(this.stop));
                 stop.cancel = cond;
                 primary.group.push(stop);
             } else {
@@ -461,7 +452,7 @@ export class PyramidBuilder {
 export function building(params: any) {
     let setup = new Setup(params.build.setup);
     setup.init();
-    let risk = new Risk(params['assets'], setup, params.build['pyramid']['trades'], params.build['pyramid']['count']);
+    let risk = new Risk(params.build.style, params['assets'], setup, params.build['pyramid']['trades'], params.build['pyramid']['count']);
     let builder = new PyramidBuilder(params.build.style, setup, risk, params.build['pyramid'], params.build['exit'], params.bookkeeper)
     return builder.build();
 }
