@@ -502,9 +502,19 @@ function _ma_dynamic_stop(builder: PyramidBuilder, share: number): MarketOrder {
 function _selling_into_weakness(builder: PyramidBuilder, share: number, stop: number, drawback: number, target: number): OrderOCO {
     let symbol = builder.setup.symbol;
     let oco = new OrderOCO();
-    oco.group.push(new StopOrder(symbol, builder.setup.close(), share, stop));
-    oco.group.slice(-1)[0].comment = "Round-Trip";
+
     let expr = [] as Expr[];
+    oco.group.push(_stop_loss_order(builder, stop, share));
+    oco.group.slice(-1)[0].comment = "Round-Trip";
+    expr.push((oco.group.slice(-1)[0].submit as Study).body as Expr);
+    // if (builder.config.cond_sl == true && builder.setup.long) {
+    //     oco.group.push(new StopOrder(symbol, builder.setup.close(), share, stop));
+    //     oco.group.slice(-1)[0].comment = "Round-Trip";
+    // } else {
+    //     oco.group.push(new StopOrder(symbol, builder.setup.close(), share, stop));
+    //     oco.group.slice(-1)[0].comment = "Round-Trip";
+    // }
+
     if ((builder.bookkeeper?.highest_high ?? 0) >= builder.setup.pivot * 1.1 && builder.setup.long) {
         let half_profit_stop = HalfProfit.with(stop, builder.bookkeeper?.highest_high);
         let order = _stop_loss_order(builder, half_profit_stop, share);
@@ -580,14 +590,16 @@ export function riding(builder: PyramidBuilder, params: any) {
                 shares = keep;
             }
             let oco = _selling_into_weakness(builder, shares, stop, drawback, target);
-            let reversal = new MarketOrder(symbol, builder.setup.close(), shares);
-            reversal.submit = new Study(new And(BeforeMarketClose, new BiExpr(ClsRange, '<', 0.6), new BiExpr('high(period=AggregationPeriod.DAY)', '>=', stop + (target - stop) * 0.6)));
-            reversal.tif = "GTC";
-            reversal.comment = "Downside Reversal";
-            oco.group.unshift(reversal);
+            if (config.selling_into_strength ?? true) {
+                let reversal = new MarketOrder(symbol, builder.setup.close(), shares);
+                reversal.submit = new Study(new And(BeforeMarketClose, new BiExpr(ClsRange, '<', 0.6), new BiExpr('high(period=AggregationPeriod.DAY)', '>=', stop + (target - stop) * 0.6)));
+                reversal.tif = "GTC";
+                reversal.comment = "Downside Reversal";
+                oco.group.unshift(reversal);
 
-            oco.group.unshift(new LimitOrder(symbol, builder.setup.close(), shares, target))
-            oco.group[0].comment = "Profit Taking";
+                oco.group.unshift(new LimitOrder(symbol, builder.setup.close(), shares, target))
+                oco.group[0].comment = "Profit Taking";
+            }
 
             multi.orders.push(oco);
             multi.orders = multi.orders.reverse();
