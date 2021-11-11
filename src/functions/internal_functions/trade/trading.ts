@@ -202,7 +202,7 @@ class Pyramid {
         }
         this.invested = this.limit * this.share;
 
-        if ('swing' === builder.style) {
+        if (!builder.risk.isPercentage) {
             this.stop = builder.setup.stop;
         } else {
             this.stop = this.price * (100 - builder.risk.risk * (builder.setup.long ? 1 : -1)).percent();
