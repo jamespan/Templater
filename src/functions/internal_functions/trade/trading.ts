@@ -8,7 +8,7 @@ import {
     StopOrder,
     TrailStopOrder
 } from "./order"
-import {evaluate, isNaN} from "mathjs";
+import {evaluate, isNaN, round} from "mathjs";
 import {And, BiExpr, Expr, Or, Study} from "./thinkscript";
 import {
     AvoidMarketOpenVolatile,
@@ -17,7 +17,7 @@ import {
     BuyRangeSMA,
     ClsRange,
     DecisiveUndercut, HalfProfit, Highest_High,
-    HugeVolume, PassThrough,
+    HugeVolume, NotExtended, PassThrough,
     SellRange,
     SMA_LAST,
     Undercut, UpsideReversal
@@ -246,6 +246,9 @@ class Pyramid {
             if (this.builder.config?.estimate && this.builder.config.volume != null) {
                 let avg = parseInt(this.builder.config.volume.split(',').join(''));
                 conditions.push(HugeVolume.over(`(${avg}*1.4)`));
+            }
+            if (!this.builder.risk.isPercentage) {
+                conditions.push(NotExtended.over(`(${this.builder.setup.stop}*${(100+Math.min(7, round(this.builder.risk.risk * 1.25, 2))).percent()})`));
             }
             primary.trigger.submit = new Study(new And(...conditions));
         } else {

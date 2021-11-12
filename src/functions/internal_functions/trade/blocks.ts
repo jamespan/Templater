@@ -35,6 +35,12 @@ export const PassThrough = new (class extends BiExpr {
     }
 })('high', '>', 1);
 
+export const NotExtended = new (class extends BiExpr {
+    over(value: any): BiExpr {
+        return super.with(value);
+    }
+})('high', '<', 1);
+
 export const AvoidMarketOpenVolatile = new VarExpr((x) => {
     let delay_minutes = (Math.floor(x / 100) - 9) * 60 + (x % 100 - 30);
     return `Between(SecondsTillTime(${x}), ${(-390 + delay_minutes) * 60}, 0)`;
