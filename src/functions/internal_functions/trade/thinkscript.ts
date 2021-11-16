@@ -107,7 +107,7 @@ export class Plot extends Statement {
 
 export class Study {
 
-    tho: boolean = true;
+    tho: boolean = false;
     period: string = "1m";
     body: Statement[] | Expr
 

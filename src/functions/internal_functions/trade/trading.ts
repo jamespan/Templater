@@ -19,7 +19,7 @@ import {
     DecisiveUndercut, HalfProfit, Highest_High,
     HugeVolume, NotExtended, PassThrough,
     SellRange,
-    SMA_LAST,
+    SMA_LAST, TightBidAskSpread,
     Undercut, UpsideReversal
 } from "./blocks";
 
@@ -233,7 +233,10 @@ class Pyramid {
                 primary.trigger = new MarketOrder(symbol, this.builder.setup.open(), this.share);
                 primary.trigger.tif = 'GTC';
             }
-            let conditions = [AvoidMarketOpenVolatile] as Expr[];
+            let conditions = [AvoidMarketOpenVolatile, TightBidAskSpread] as Expr[];
+            if (!this.builder.risk.isPercentage) {
+                conditions.push(NotExtended.over(`(${this.builder.setup.stop}*${(100+Math.min(7, round(this.builder.risk.risk * 1.25, 2))).percent().toFixed(4)})`));
+            }
             if (this.builder.setup.pattern.contains('Pullback')) {
                 conditions.push(BuyRangeSMA);
                 if (this.builder.config.reversal ?? true) {
@@ -246,9 +249,6 @@ class Pyramid {
             if (this.builder.config?.estimate && this.builder.config.volume != null) {
                 let avg = parseInt(this.builder.config.volume.split(',').join(''));
                 conditions.push(HugeVolume.over(`(${avg}*1.4)`));
-            }
-            if (!this.builder.risk.isPercentage) {
-                conditions.push(NotExtended.over(`(${this.builder.setup.stop}*${(100+Math.min(7, round(this.builder.risk.risk * 1.25, 2))).percent()})`));
             }
             primary.trigger.submit = new Study(new And(...conditions));
         } else {
