@@ -233,7 +233,10 @@ class Pyramid {
                 primary.trigger = new MarketOrder(symbol, this.builder.setup.open(), this.share);
                 primary.trigger.tif = 'GTC';
             }
-            let conditions = [AvoidMarketOpenVolatile, TightBidAskSpread] as Expr[];
+            let conditions = [AvoidMarketOpenVolatile] as Expr[];
+            if (this.builder.setup.long) {
+                conditions.push(TightBidAskSpread);
+            }
             if (!this.builder.risk.isPercentage) {
                 conditions.push(NotExtended.over(`(${this.builder.setup.stop}*${(100+Math.min(7, round(this.builder.risk.risk * 1.25, 2))).percent().toFixed(4)})`));
             }
@@ -246,9 +249,14 @@ class Pyramid {
                 conditions.push(this.builder.setup.long ? BuyRange.of(this.price, this.limit) : SellRange.of(this.limit, this.price));
             }
 
-            if (this.builder.config?.estimate && this.builder.config.volume != null) {
-                let avg = parseInt(this.builder.config.volume.split(',').join(''));
-                conditions.push(HugeVolume.over(`(${avg}*1.4)`));
+            if (this.builder.config?.estimate) {
+                let volumeAnchor = this.builder.config.volume_anchor ?? "avg";
+                if ("avg" === volumeAnchor &&  this.builder.config.volume != null) {
+                    let avg = parseInt(this.builder.config.volume.split(',').join(''));
+                    conditions.push(HugeVolume.over(`(${avg}*1.4)`));
+                } else {
+                    conditions.push(HugeVolume.over(`(volume(period=AggregationPeriod.DAY)[1])`));
+                }
             }
             primary.trigger.submit = new Study(new And(...conditions));
         } else {
