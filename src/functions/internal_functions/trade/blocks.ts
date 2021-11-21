@@ -9,7 +9,7 @@ Number.prototype.financial = function () {
     return this.toFixed(2);
 };
 
-export const VolumeEstimate = new Expr("((if GetTime() > RegularTradingEnd(GetYYYYMMDD()) or GetTime() < RegularTradingStart(GetYYYYMMDD()) then 0 else ((fold i = 0 to 40 with s = 0 do if GetValue(GetYYYYMMDD(),i*10+10) == GetYYYYMMDD() and GetValue(SecondsTillTime(930),i*10+10)<=0 then s + GetValue(Sum(volume, 10), i*10) else s) + (fold j = 0 to 10 with b = 0 do if j <= (-SecondsTillTime(930)/60%10) then b + if j == 0 and GetValue(GetTime(), (-SecondsTillTime(930)/60)-0) >= RegularTradingStart(GetYYYYMMDD()) then GetValue(volume, (-SecondsTillTime(930)/60)-0) else if j == 1 and GetValue(GetTime(), (-SecondsTillTime(930)/60)-1) >= RegularTradingStart(GetYYYYMMDD()) then GetValue(volume, (-SecondsTillTime(930)/60)-1) else if j == 2 and GetValue(GetTime(), (-SecondsTillTime(930)/60)-2) >= RegularTradingStart(GetYYYYMMDD()) then GetValue(volume, (-SecondsTillTime(930)/60)-2) else if j == 3 and GetValue(GetTime(), (-SecondsTillTime(930)/60)-3) >= RegularTradingStart(GetYYYYMMDD()) then GetValue(volume, (-SecondsTillTime(930)/60)-3) else if j == 4 and GetValue(GetTime(), (-SecondsTillTime(930)/60)-4) >= RegularTradingStart(GetYYYYMMDD()) then GetValue(volume, (-SecondsTillTime(930)/60)-4) else if j == 5 and GetValue(GetTime(), (-SecondsTillTime(930)/60)-5) >= RegularTradingStart(GetYYYYMMDD()) then GetValue(volume, (-SecondsTillTime(930)/60)-5) else if j == 6 and GetValue(GetTime(), (-SecondsTillTime(930)/60)-6) >= RegularTradingStart(GetYYYYMMDD()) then GetValue(volume, (-SecondsTillTime(930)/60)-6) else if j == 7 and GetValue(GetTime(), (-SecondsTillTime(930)/60)-7) >= RegularTradingStart(GetYYYYMMDD()) then GetValue(volume, (-SecondsTillTime(930)/60)-7) else if j == 8 and GetValue(GetTime(), (-SecondsTillTime(930)/60)-8) >= RegularTradingStart(GetYYYYMMDD()) then GetValue(volume, (-SecondsTillTime(930)/60)-8) else if j == 9 and GetValue(GetTime(), (-SecondsTillTime(930)/60)-9) >= RegularTradingStart(GetYYYYMMDD()) then GetValue(volume, (-SecondsTillTime(930)/60)-9) else 0 else b)))/(-SecondsTillTime(930)/60+1)*390)");
+export const VolumeEstimate = new Expr("((fold i = 0 to 390 with s = 0 do if GetValue(SecondsTillTime(930), i) <= 0 and GetValue(GetYYYYMMDD(),i) == GetYYYYMMDD() then s + GetValue(volume, i) else s)/(-SecondsTillTime(930)/60+1)*390)");
 export const ClsRange = new Expr("(close-low(period=AggregationPeriod.DAY))/(high(period=AggregationPeriod.DAY)-low(period=AggregationPeriod.DAY))");
 export const HugeVolume = new (class extends BiExpr {
     over(value: any): BiExpr {
@@ -39,7 +39,7 @@ export const NotExtended = new (class extends BiExpr {
     over(value: any): BiExpr {
         return super.with(value);
     }
-})('ask', '<', 1);
+})('close(priceType=PriceType.ASK)', '<', 1);
 
 export const AvoidMarketOpenVolatile = new VarExpr((x) => {
     let delay_minutes = (Math.floor(x / 100) - 9) * 60 + (x % 100 - 30);
@@ -83,7 +83,7 @@ export const SellRange = Between_Low;
 export const BuyRangeSMA = Between_High.of(new BiExpr(SMA, "+", 0.1), new BiExpr(SMA, "*", 1.05))
 
 // condition not support bid ask
-export const BidAskSpread = new Expr("(ask/bid-1)*100");
+export const BidAskSpread = new Expr("(close(priceType=PriceType.ASK)/close(priceType=PriceType.BID)-1)*100");
 export const TightBidAskSpread = new BiExpr(BidAskSpread, '<', 0.5);
 
 export const TodayLowUndercutPrevLow = new BiExpr("low(period=AggregationPeriod.DAY)", '<', 'low(period=AggregationPeriod.DAY)[1]');
