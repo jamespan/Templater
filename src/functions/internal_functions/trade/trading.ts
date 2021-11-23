@@ -242,6 +242,7 @@ class Pyramid {
             }
             if (this.builder.setup.pattern.contains('Pullback')) {
                 conditions.push(BuyRangeSMA);
+                conditions.push(PassThrough.value("close(period=AggregationPeriod.DAY)[1]"));
                 if (this.builder.config.reversal ?? true) {
                     conditions.push(UpsideReversal);
                 }
