@@ -17,7 +17,7 @@ import {
     BuyRangeSMA,
     ClsRange,
     DecisiveUndercut, HalfProfit, Highest_High,
-    HugeVolume, NotExtended, PassThrough,
+    HugeVolume, NoFallingKnife, NotExtended, PassThrough,
     SellRange,
     SMA_LAST, TightBidAskSpread,
     Undercut, UpsideReversal
@@ -236,6 +236,7 @@ class Pyramid {
             let conditions = [AvoidMarketOpenVolatile] as Expr[];
             if (this.builder.setup.long) {
                 conditions.push(TightBidAskSpread);
+                conditions.push(NoFallingKnife);
             }
             if (!this.builder.risk.isPercentage) {
                 conditions.push(NotExtended.over(`(${this.builder.setup.stop}*${(100+Math.min(7, round(this.builder.risk.risk * 1.25, 2))).percent().toFixed(4)})`));

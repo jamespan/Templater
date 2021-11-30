@@ -86,6 +86,8 @@ export const BuyRangeSMA = Between_High.of(new BiExpr(SMA, "+", 0.1), new BiExpr
 export const BidAskSpread = new Expr("(close(priceType=PriceType.ASK)/close(priceType=PriceType.BID)-1)*100");
 export const TightBidAskSpread = new BiExpr(BidAskSpread, '<', 0.5);
 
+export const NoFallingKnife = new BiExpr("close", ">", "close(period=AggregationPeriod.DAY)[1]");
+
 export const TodayLowUndercutPrevLow = new BiExpr("low(period=AggregationPeriod.DAY)", '<', 'low(period=AggregationPeriod.DAY)[1]');
 export const UpsideReversal = TodayLowUndercutPrevLow.and(PassThrough.value('high(period=AggregationPeriod.DAY)[1]+0.1'));
 
