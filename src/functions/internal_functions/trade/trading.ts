@@ -15,12 +15,12 @@ import {
     BeforeMarketClose,
     BuyRange,
     BuyRangeSMA,
-    ClsRange,
-    DecisiveUndercut, HalfProfit, Highest_High,
-    HugeVolume, NoFallingKnife, NotExtended, PassThrough,
+    ClsRange, DecisivePassThrough,
+    DecisiveUndercut, HalfProfit, HalfProfitShorting, Highest_High,
+    HugeVolume, Lowest_Low, AvoidFallingKnife, NotExtended, PassThrough,
     SellRange,
     SMA_LAST, TightBidAskSpread,
-    Undercut, UpsideReversal
+    Undercut, UpsideReversal, AvoidFallingKnifeShorting
 } from "./blocks";
 
 const defaults = (o: any, v: any) => o != null ? o : v;
@@ -233,13 +233,10 @@ class Pyramid {
                 primary.trigger = new MarketOrder(symbol, this.builder.setup.open(), this.share);
                 primary.trigger.tif = 'GTC';
             }
-            let conditions = [AvoidMarketOpenVolatile] as Expr[];
-            if (this.builder.setup.long) {
-                conditions.push(TightBidAskSpread);
-                conditions.push(NoFallingKnife);
-            }
+            let conditions = [AvoidMarketOpenVolatile, TightBidAskSpread] as Expr[];
+            conditions.push(this.builder.setup.long ? AvoidFallingKnife: AvoidFallingKnifeShorting);
             if (!this.builder.risk.isPercentage) {
-                conditions.push(NotExtended.over(`(${this.builder.setup.stop}*${(100+Math.min(7, round(this.builder.risk.risk * 1.25, 2))).percent().toFixed(4)})`));
+                conditions.push(NotExtended.over(`(${this.builder.setup.stop}*${(100 + Math.min(7, round(this.builder.risk.risk * 1.25, 2))).percent().toFixed(4)})`));
             }
             if (this.builder.setup.pattern.contains('Pullback')) {
                 conditions.push(BuyRangeSMA);
@@ -253,7 +250,7 @@ class Pyramid {
 
             if (this.builder.config?.estimate) {
                 let volumeAnchor = this.builder.config.volume_anchor ?? "avg";
-                if ("avg" === volumeAnchor &&  this.builder.config.volume != null) {
+                if ("avg" === volumeAnchor && this.builder.config.volume != null) {
                     let avg = parseInt(this.builder.config.volume.split(',').join(''));
                     conditions.push(HugeVolume.over(`(${avg}*1.4)`));
                 } else {
@@ -280,9 +277,13 @@ class Pyramid {
             primary.group.push(order);
         }
 
-        if (this.builder.bookkeeper?.sma10_trailing != null && this.limit === this.price && this.builder.setup.long) {
+        if (this.builder.bookkeeper?.sma10_trailing != null && this.limit === this.price) {
             primary.group.push(_ma_dynamic_stop(this.builder, this.share));
-            primary.group.slice(-1)[0].loss = Math.max((this.price - this.builder.bookkeeper?.sma10_trailing * 0.985) * this.share, 0);
+            if (this.builder.setup.long) {
+                primary.group.slice(-1)[0].loss = Math.max((this.price - this.builder.bookkeeper?.sma10_trailing * 0.985) * this.share, 0);
+            } else {
+                primary.group.slice(-1)[0].loss = Math.max((this.price - this.builder.bookkeeper?.sma10_trailing * 1.015) * this.share * -1, 0);
+            }
         }
 
         // round-trip sell rule
@@ -294,19 +295,27 @@ class Pyramid {
         }
         let cond = `${symbol} MARK AT OR ${this.builder.setup.long ? "ABOVE" : "BELOW"} ${this.protect.financial()}`;
         let highest_high = this.builder.bookkeeper?.highest_high ?? 0;
+        let lowest_low = this.builder.bookkeeper?.lowest_low ?? NaN;
         if (this.limit === this.price) {
-            if (this.builder.setup.long && this.builder.config.cond_sl == true && highest_high > 0) {
-                let half_profit_stop = HalfProfit.with(this.price, highest_high);
-                let order = _stop_loss_order(this.builder, half_profit_stop, this.share);
-                (order.submit as Study).body = new And((order.submit as Study).body as Expr, new BiExpr(Highest_High.of(highest_high), ">=", `${this.price.financial()}*1.1`))
-                primary.group.push(order);
+            if (this.builder.config.cond_sl == true && ((this.builder.setup.long && highest_high > 0) || (!this.builder.setup.long && !isNaN(lowest_low)))) {
+                if (this.builder.setup.long) {
+                    let half_profit_stop = HalfProfit.with(this.price, highest_high);
+                    let order = _stop_loss_order(this.builder, half_profit_stop, this.share);
+                    (order.submit as Study).body = new And((order.submit as Study).body as Expr, new BiExpr(Highest_High.of(highest_high), ">=", `${this.price.financial()}*1.1`));
+                    primary.group.push(order);
+                } else {
+                    let half_profit_stop = HalfProfitShorting.with(this.price, lowest_low);
+                    let order = _stop_loss_order(this.builder, half_profit_stop, this.share);
+                    (order.submit as Study).body = new And((order.submit as Study).body as Expr, new BiExpr(Lowest_Low.of(lowest_low), "<=", `${this.price.financial()}*0.9`));
+                    primary.group.push(order);
+                }
             } else {
                 primary.group.push(new TrailStopOrder(symbol, this.builder.setup.close(), this.share, this.builder.setup.long ? `MARK-${(this.builder.risk.profit / 2).financial()}%` : `MARK+${(this.builder.risk.profit / 2).financial()}%`));
             }
             primary.group.slice(-1)[0].comment = "Protect Half Profit";
             primary.group.push(new StopOrder(symbol, this.builder.setup.close(), this.share, this.limit));
             primary.group.slice(-1)[0].submit = cond;
-            if (highest_high >= this.protect) {
+            if ((this.builder.setup.long && highest_high >= this.protect) || (!this.builder.setup.long && lowest_low <= this.protect)) {
                 primary.group.slice(-1)[0].submit = null;
                 primary.group.slice(-1)[0].loss = 0;
             }
@@ -345,7 +354,7 @@ class Pyramid {
         primary.group.slice(-1)[0].comment = "Initial Stop-Loss";
         primary.group.slice(-1)[0].loss = (this.limit * this.builder.risk.risk / 100) * this.share;
 
-        if (highest_high > this.protect) {
+        if ((this.builder.setup.long && highest_high >= this.protect) || (!this.builder.setup.long && lowest_low <= this.protect)) {
             primary.group.pop();
         } else {
             let better_sl = primary.group.slice(0, -1).filter((o) => {
@@ -491,10 +500,14 @@ export function checking(pyramids: Array<Pyramid>) {
 function _stop_loss_order(builder: PyramidBuilder, stop: number | Expr, share: number, cost: number = null): MarketOrder | StopOrder {
     let symbol = builder.setup.symbol;
     let order: MarketOrder | StopOrder;
-    if (builder.config.cond_sl == true && builder.setup.long) {
+    if (builder.config.cond_sl == true) {
         order = new MarketOrder(symbol, builder.setup.close(), share);
         order.tif = "GTC";
-        order.submit = new Study(Undercut.value(stop));
+        if (builder.setup.long) {
+            order.submit = new Study(Undercut.value(stop));
+        } else {
+            order.submit = new Study(PassThrough.value(stop));
+        }
     } else {
         order = new StopOrder(symbol, builder.setup.close(), share, typeof stop == "number" ? stop : stop.toString());
     }
@@ -507,7 +520,11 @@ function _stop_loss_order(builder: PyramidBuilder, stop: number | Expr, share: n
 function _ma_dynamic_stop(builder: PyramidBuilder, share: number): MarketOrder {
     let stop = new MarketOrder(builder.setup.symbol, builder.setup.close(), share);
     stop.tif = "GTC";
-    stop.submit = new Study(DecisiveUndercut.value(builder.bookkeeper.sma10_trailing).or(DecisiveUndercut.value(SMA_LAST.length(10))));
+    if (builder.setup.long) {
+        stop.submit = new Study(DecisiveUndercut.value(builder.bookkeeper.sma10_trailing).or(DecisiveUndercut.value(SMA_LAST.length(10))));
+    } else {
+        stop.submit = new Study(DecisivePassThrough.value(builder.bookkeeper.sma10_trailing).or(DecisivePassThrough.value(SMA_LAST.length(10))));
+    }
     stop.comment = "Undercut Moving Average";
     return stop;
 }

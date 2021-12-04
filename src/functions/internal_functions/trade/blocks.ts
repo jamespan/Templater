@@ -35,6 +35,12 @@ export const PassThrough = new (class extends BiExpr {
     }
 })('high', '>', 1);
 
+export const DecisivePassThrough = new (class extends BiExpr {
+    value(value: any): BiExpr {
+        return PassThrough.value(new BiExpr(value, '*', '1.015'));
+    }
+})('high', '>', 1);
+
 export const NotExtended = new (class extends BiExpr {
     over(value: any): BiExpr {
         return super.with(value);
@@ -86,7 +92,8 @@ export const BuyRangeSMA = Between_High.of(new BiExpr(SMA, "+", 0.1), new BiExpr
 export const BidAskSpread = new Expr("(close(priceType=PriceType.ASK)/close(priceType=PriceType.BID)-1)*100");
 export const TightBidAskSpread = new BiExpr(BidAskSpread, '<', 0.5);
 
-export const NoFallingKnife = new BiExpr("close", ">", "close(period=AggregationPeriod.DAY)[1]");
+export const AvoidFallingKnife = new BiExpr("close", ">", "close(period=AggregationPeriod.DAY)[1]");
+export const AvoidFallingKnifeShorting = new BiExpr("close", "<", "close(period=AggregationPeriod.DAY)[1]");
 
 export const TodayLowUndercutPrevLow = new BiExpr("low(period=AggregationPeriod.DAY)", '<', 'low(period=AggregationPeriod.DAY)[1]');
 export const UpsideReversal = TodayLowUndercutPrevLow.and(PassThrough.value('high(period=AggregationPeriod.DAY)[1]+0.1'));
@@ -103,6 +110,12 @@ export const Highest_High = new (class extends Call {
     }
 })("Max", "high(period=AggregationPeriod.DAY)", 0);
 
+export const Lowest_Low = new (class extends Call {
+    of(lowest_low: number): Call {
+        return super.withParams("low(period=AggregationPeriod.DAY)", lowest_low.financial());
+    }
+})("Min", "low(period=AggregationPeriod.DAY)", 0);
+
 export const HalfProfit = new (class extends VarExpr {
     with(cost: number, highest_high: number): VarExpr {
         return super.withParams(cost, highest_high);
@@ -111,6 +124,16 @@ export const HalfProfit = new (class extends VarExpr {
     let cost = args[0] as number;
     let highest_high = args[1] as number;
     return `(${Highest_High.of(highest_high)}+${cost?.financial()})/2`;
+}, 0, 0, 0);
+
+export const HalfProfitShorting = new (class extends VarExpr {
+    with(cost: number, highest_high: number): VarExpr {
+        return super.withParams(cost, highest_high);
+    }
+})((args) => {
+    let cost = args[0] as number;
+    let highest_high = args[1] as number;
+    return `(${Lowest_Low.of(highest_high)}+${cost?.financial()})/2`;
 }, 0, 0, 0);
 
 if (module.id == ".") {
