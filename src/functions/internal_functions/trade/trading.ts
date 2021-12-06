@@ -298,15 +298,16 @@ class Pyramid {
         let lowest_low = this.builder.bookkeeper?.lowest_low ?? NaN;
         if (this.limit === this.price) {
             if (this.builder.config.cond_sl == true && ((this.builder.setup.long && highest_high > 0) || (!this.builder.setup.long && !isNaN(lowest_low)))) {
+                let lock_half_profit = Math.min(10, (Math.min(this.builder.risk.risk * 2, 10) + this.builder.risk.profit) / 2.0);
                 if (this.builder.setup.long) {
                     let half_profit_stop = HalfProfit.with(this.price, highest_high);
                     let order = _stop_loss_order(this.builder, half_profit_stop, this.share);
-                    (order.submit as Study).body = new And((order.submit as Study).body as Expr, new BiExpr(Highest_High.of(highest_high), ">=", `${this.price.financial()}*1.1`));
+                    (order.submit as Study).body = new And((order.submit as Study).body as Expr, new BiExpr(Highest_High.of(highest_high), ">=", `${this.price.financial()}*(100+${lock_half_profit.financial()})/100`));
                     primary.group.push(order);
                 } else {
                     let half_profit_stop = HalfProfitShorting.with(this.price, lowest_low);
                     let order = _stop_loss_order(this.builder, half_profit_stop, this.share);
-                    (order.submit as Study).body = new And((order.submit as Study).body as Expr, new BiExpr(Lowest_Low.of(lowest_low), "<=", `${this.price.financial()}*0.9`));
+                    (order.submit as Study).body = new And((order.submit as Study).body as Expr, new BiExpr(Lowest_Low.of(lowest_low), "<=", `${this.price.financial()}*(100-${lock_half_profit.financial()})/100`));
                     primary.group.push(order);
                 }
             } else {
