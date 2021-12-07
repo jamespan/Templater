@@ -250,8 +250,10 @@ class Pyramid {
 
             if (this.builder.config?.estimate) {
                 let volumeAnchor = this.builder.config.volume_anchor ?? "avg";
-                if ("avg" === volumeAnchor && this.builder.config.volume != null) {
-                    let avg = parseInt(this.builder.config.volume.split(',').join(''));
+                if ("avg" === volumeAnchor) {
+                    let avg = this.builder.config.volume != null ?
+                        parseInt(this.builder.config.volume.split(',').join('')) :
+                        "MovingAverage(data=VOLUME(period=AggregationPeriod.DAY),length=50)[1]";
                     conditions.push(HugeVolume.over(`(${avg}*1.4)`));
                 } else {
                     conditions.push(HugeVolume.over(`(volume(period=AggregationPeriod.DAY)[1])`));
