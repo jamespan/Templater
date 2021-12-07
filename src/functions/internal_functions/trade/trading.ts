@@ -20,7 +20,7 @@ import {
     HugeVolume, Lowest_Low, AvoidFallingKnife, NotExtended, PassThrough,
     SellRange,
     SMA_LAST, TightBidAskSpread,
-    Undercut, UpsideReversal, AvoidFallingKnifeShorting
+    Undercut, UpsideReversal, AvoidFallingKnifeShorting, NotExtendedShorting
 } from "./blocks";
 
 const defaults = (o: any, v: any) => o != null ? o : v;
@@ -138,7 +138,7 @@ class Risk {
             setup.stop = setup.pivot * (100 - this.risk * (this.setup.long ? 1 : -1)).percent()
             this.position = assets / 10 * this.setup.scale;
         } else {
-            this.risk = (1 - setup.stop / setup.pivot) * 100;
+            this.risk = (1 - setup.stop / setup.pivot) * 100 * (this.setup.long ? 1 : -1);
             if (style == "swing") {
                 this.position = assets / 100 / this.risk.percent();
                 // round swing position size to fit 10 parts
@@ -236,7 +236,11 @@ class Pyramid {
             let conditions = [AvoidMarketOpenVolatile, TightBidAskSpread] as Expr[];
             conditions.push(this.builder.setup.long ? AvoidFallingKnife: AvoidFallingKnifeShorting);
             if (!this.builder.risk.isPercentage) {
-                conditions.push(NotExtended.over(`(${this.builder.setup.stop}*${(100 + Math.min(7, round(this.builder.risk.risk * 1.25, 2))).percent().toFixed(4)})`));
+                if (this.builder.setup.long) {
+                    conditions.push(NotExtended.over(`(${this.builder.setup.stop.financial()}*${(100 + Math.min(7, round(this.builder.risk.risk * 1.25, 2))).percent().toFixed(4)})`));
+                } else {
+                    conditions.push(NotExtendedShorting.over(`(${this.builder.setup.stop.financial()}*${(100 - Math.min(5, round(this.builder.risk.risk * 1.25, 2))).percent().toFixed(4)})`));
+                }
             }
             if (this.builder.setup.pattern.contains('Pullback')) {
                 conditions.push(BuyRangeSMA);
@@ -326,6 +330,24 @@ class Pyramid {
         } else {
             if (this.builder.risk.isPercentage) {
                 primary.group.push(new TrailStopOrder(symbol, this.builder.setup.close(), this.share, this.builder.setup.long ? `MARK-${(this.builder.risk.risk * 2).financial()}%` : `MARK+${(this.builder.risk.risk * 2).financial()}%`));
+                primary.group.slice(-1)[0].comment = "Round-Trip";
+            } else {
+                let lock_half_profit = Math.min(10, (Math.min(this.builder.risk.risk * 2, 10) + this.builder.risk.profit) / 2.0);
+                if (this.builder.setup.long) {
+                    let half_profit_stop = HalfProfit.with(this.price, this.price);
+                    let order = _stop_loss_order(this.builder, half_profit_stop, this.share);
+                    (order.submit as Study).body = new And((order.submit as Study).body as Expr, new BiExpr(Highest_High.of(this.price), ">=", `${this.price.financial()}*(100+${lock_half_profit.financial()})/100`));
+                    primary.group.push(order);
+                } else {
+                    let half_profit_stop = HalfProfitShorting.with(this.price, this.price);
+                    let order = _stop_loss_order(this.builder, half_profit_stop, this.share);
+                    (order.submit as Study).body = new And((order.submit as Study).body as Expr, new BiExpr(Lowest_Low.of(this.price), "<=", `${this.price.financial()}*(100-${lock_half_profit.financial()})/100`));
+                    primary.group.push(order);
+                }
+                primary.group.slice(-1)[0].comment = "Protect Half Profit";
+
+                primary.group.push(new StopOrder(symbol, this.builder.setup.close(), this.share, this.price));
+                primary.group.slice(-1)[0].submit = cond;
                 primary.group.slice(-1)[0].comment = "Round-Trip";
             }
         }

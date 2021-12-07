@@ -47,6 +47,12 @@ export const NotExtended = new (class extends BiExpr {
     }
 })('close(priceType=PriceType.ASK)', '<', 1);
 
+export const NotExtendedShorting = new (class extends BiExpr {
+    over(value: any): BiExpr {
+        return super.with(value);
+    }
+})('close(priceType=PriceType.BID)', '>', 1);
+
 export const AvoidMarketOpenVolatile = new VarExpr((x) => {
     let delay_minutes = (Math.floor(x / 100) - 9) * 60 + (x % 100 - 30);
     return `Between(SecondsTillTime(${x}), ${(-390 + delay_minutes) * 60}, 0)`;
@@ -114,7 +120,7 @@ export const Lowest_Low = new (class extends Call {
     of(lowest_low: number): Call {
         return super.withParams("low(period=AggregationPeriod.DAY)", lowest_low.financial());
     }
-})("Min", "low(period=AggregationPeriod.DAY)", 0);
+})("Min", "low(period=AggregationPeriod.DAY)", 99999);
 
 export const HalfProfit = new (class extends VarExpr {
     with(cost: number, highest_high: number): VarExpr {
