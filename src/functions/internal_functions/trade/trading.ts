@@ -379,14 +379,16 @@ class Pyramid {
         primary.group.slice(-1)[0].comment = "Initial Stop-Loss";
         primary.group.slice(-1)[0].loss = (this.limit * this.builder.risk.risk / 100) * this.share;
 
-        if ((this.builder.setup.long && highest_high >= this.protect) || (!this.builder.setup.long && lowest_low <= this.protect)) {
-            primary.group.pop();
-        } else {
-            let better_sl = primary.group.slice(0, -1).filter((o) => {
-                return !isNaN(o.loss) && o.loss <= primary.group.slice(-1)[0].loss;
-            });
-            if (better_sl.length > 0) {
+        if (this.limit == this.price) {
+            if ((this.builder.setup.long && highest_high >= this.protect) || (!this.builder.setup.long && lowest_low <= this.protect)) {
                 primary.group.pop();
+            } else {
+                let better_sl = primary.group.slice(0, -1).filter((o) => {
+                    return !isNaN(o.loss) && o.loss <= primary.group.slice(-1)[0].loss;
+                });
+                if (better_sl.length > 0) {
+                    primary.group.pop();
+                }
             }
         }
     }
