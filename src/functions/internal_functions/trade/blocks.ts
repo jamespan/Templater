@@ -92,7 +92,7 @@ export const Between_Low = new (class extends Call {
 
 export const BuyRange = Between_High;
 export const SellRange = Between_Low;
-export const BuyRangeSMA = Between_High.of(new BiExpr(SMA, "+", 0.1), new BiExpr(SMA, "*", 1.05))
+export const BuyRangeSMA = Between_High.of(new BiExpr(SMA_LAST, "+", 0.1), new BiExpr(SMA_LAST, "*", 1.05))
 
 // condition not support bid ask
 export const BidAskSpread = new Expr("(close(priceType=PriceType.ASK)/close(priceType=PriceType.BID)-1)*100");
