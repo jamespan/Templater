@@ -138,7 +138,18 @@ class Risk {
             setup.stop = setup.pivot * (100 - this.risk * (this.setup.long ? 1 : -1)).percent()
             this.position = assets / 10 * this.setup.scale;
         } else {
-            this.risk = (1 - setup.stop / setup.pivot) * 100 * (this.setup.long ? 1 : -1);
+            let cost = setup.pivot;
+            if (trades != null && trades.length === layer) {
+                let invested = 0;
+                let shares = 0;
+                for (let i = 0; i < trades.length; ++i) {
+                    let parts = trades[i].split('@', 2);
+                    shares += parseInt(parts[0]);
+                    invested += parseInt(parts[0]) * parseFloat(parts[1]);
+                }
+                cost = invested / shares;
+            }
+            this.risk = (1 - setup.stop / cost) * 100 * (this.setup.long ? 1 : -1);
             if (style == "swing") {
                 this.position = assets / 100 / this.risk.percent();
                 // round swing position size to fit 10 parts
@@ -282,13 +293,21 @@ class Pyramid {
             order.comment = "Exit without enough Cushion"
             primary.group.push(order);
         }
-
+        //TODO clean
         if (this.builder.bookkeeper?.sma10_trailing != null && this.limit === this.price) {
-            primary.group.push(_ma_dynamic_stop(this.builder, this.share));
-            if (this.builder.setup.long) {
-                primary.group.slice(-1)[0].loss = Math.max((this.price - this.builder.bookkeeper?.sma10_trailing * 0.985) * this.share, 0);
-            } else {
-                primary.group.slice(-1)[0].loss = Math.max((this.price - this.builder.bookkeeper?.sma10_trailing * 1.015) * this.share * -1, 0);
+            let highest_high = this.builder.bookkeeper?.highest_high ?? 0;
+            let lowest_low = this.builder.bookkeeper?.lowest_low ?? NaN;
+            let stop_ma = this.builder.config.ma_stop ?? 10
+            if ((this.builder.setup.long && ((stop_ma == 10 && this.builder.bookkeeper?.sma10_trailing < this.builder.bookkeeper?.price - this.builder.bookkeeper?.atr) || (stop_ma != 10)) )
+            || (!this.builder.setup.long && lowest_low < this.builder.bookkeeper?.sma10_trailing)) {
+                primary.group.push(_ma_dynamic_stop(this.builder, this.share, this.builder.config.ma_stop ?? 10));
+                if (this.builder.setup.long) {
+                    if (stop_ma == 10) {
+                        primary.group.slice(-1)[0].loss = Math.max((this.price - this.builder.bookkeeper?.sma10_trailing * 0.985) * this.share, 0);
+                    }
+                } else {
+                    primary.group.slice(-1)[0].loss = Math.max((this.price - this.builder.bookkeeper?.sma10_trailing * 1.015) * this.share * -1, 0);
+                }
             }
         }
 
@@ -544,13 +563,19 @@ function _stop_loss_order(builder: PyramidBuilder, stop: number | Expr, share: n
     return order;
 }
 
-function _ma_dynamic_stop(builder: PyramidBuilder, share: number): MarketOrder {
+function _ma_dynamic_stop(builder: PyramidBuilder, share: number, ma_length: number = 10): MarketOrder {
     let stop = new MarketOrder(builder.setup.symbol, builder.setup.close(), share);
     stop.tif = "GTC";
     if (builder.setup.long) {
-        stop.submit = new Study(DecisiveUndercut.value(builder.bookkeeper.sma10_trailing).or(DecisiveUndercut.value(SMA_LAST.length(10))));
+        stop.submit = new Study(DecisiveUndercut.value(builder.bookkeeper.sma10_trailing).or(DecisiveUndercut.value(SMA_LAST.length(ma_length))));
+        if (ma_length != 10) {
+            stop.submit = new Study(DecisiveUndercut.value(SMA_LAST.length(ma_length)));
+        }
     } else {
-        stop.submit = new Study(DecisivePassThrough.value(builder.bookkeeper.sma10_trailing).or(DecisivePassThrough.value(SMA_LAST.length(10))));
+        stop.submit = new Study(DecisivePassThrough.value(builder.bookkeeper.sma10_trailing).or(DecisivePassThrough.value(SMA_LAST.length(ma_length))));
+        if (ma_length != 10) {
+            stop.submit = new Study(DecisivePassThrough.value(SMA_LAST.length(ma_length)));
+        }
     }
     stop.comment = "Undercut Moving Average";
     return stop;
