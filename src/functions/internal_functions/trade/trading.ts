@@ -293,20 +293,15 @@ class Pyramid {
             order.comment = "Exit without enough Cushion"
             primary.group.push(order);
         }
-        //TODO clean
-        if (this.builder.bookkeeper?.sma10_trailing != null && this.limit === this.price) {
-            let highest_high = this.builder.bookkeeper?.highest_high ?? 0;
-            let lowest_low = this.builder.bookkeeper?.lowest_low ?? NaN;
-            let stop_ma = this.builder.config.ma_stop ?? 10
-            if ((this.builder.setup.long && ((stop_ma == 10 && this.builder.bookkeeper?.sma10_trailing < this.builder.bookkeeper?.price - this.builder.bookkeeper?.atr) || (stop_ma != 10)) )
-            || (!this.builder.setup.long && lowest_low < this.builder.bookkeeper?.sma10_trailing)) {
-                primary.group.push(_ma_dynamic_stop(this.builder, this.share, this.builder.config.ma_stop ?? 10));
+        let trailing_price = _ma_trailing_price(this.builder);
+        if (this.limit === this.price && trailing_price != null) {
+            if ((this.builder.setup.long && (trailing_price < this.builder.bookkeeper?.price - this.builder.bookkeeper?.atr))
+                || (!this.builder.setup.long && (trailing_price > this.builder.bookkeeper?.price - this.builder.bookkeeper?.atr))) {
+                primary.group.push(_ma_dynamic_stop(this.builder, this.share, this.builder.config.ma_stop ?? 10, trailing_price));
                 if (this.builder.setup.long) {
-                    if (stop_ma == 10) {
-                        primary.group.slice(-1)[0].loss = Math.max((this.price - this.builder.bookkeeper?.sma10_trailing * 0.985) * this.share, 0);
-                    }
+                    primary.group.slice(-1)[0].loss = Math.max((this.price - trailing_price * 0.985) * this.share, 0);
                 } else {
-                    primary.group.slice(-1)[0].loss = Math.max((this.price - this.builder.bookkeeper?.sma10_trailing * 1.015) * this.share * -1, 0);
+                    primary.group.slice(-1)[0].loss = Math.max((this.price - trailing_price * 1.015) * this.share * -1, 0);
                 }
             }
         }
@@ -563,17 +558,32 @@ function _stop_loss_order(builder: PyramidBuilder, stop: number | Expr, share: n
     return order;
 }
 
-function _ma_dynamic_stop(builder: PyramidBuilder, share: number, ma_length: number = 10): MarketOrder {
+function _ma_trailing_price(builder: PyramidBuilder) {
+    let ma_length = builder.config.ma_stop ?? 10;
+    let trailing_key = "sma10_trailing";
+    if (ma_length == 10) {
+        trailing_key = "sma10_trailing";
+    } else if (ma_length == 50) {
+        trailing_key = "sma50_trailing";
+    } else if (ma_length == 21) {
+        trailing_key = "ema21_trailing";
+    }
+    return builder.bookkeeper[trailing_key];
+}
+
+function _ma_dynamic_stop(builder: PyramidBuilder, share: number, ma_length: number = 10, trailing_price: number = null): MarketOrder {
     let stop = new MarketOrder(builder.setup.symbol, builder.setup.close(), share);
     stop.tif = "GTC";
     if (builder.setup.long) {
-        stop.submit = new Study(DecisiveUndercut.value(builder.bookkeeper.sma10_trailing).or(DecisiveUndercut.value(SMA_LAST.length(ma_length))));
-        if (ma_length != 10) {
+        if (trailing_price != null) {
+            stop.submit = new Study(DecisiveUndercut.value(trailing_price).or(DecisiveUndercut.value(SMA_LAST.length(ma_length))));
+        } else {
             stop.submit = new Study(DecisiveUndercut.value(SMA_LAST.length(ma_length)));
         }
     } else {
-        stop.submit = new Study(DecisivePassThrough.value(builder.bookkeeper.sma10_trailing).or(DecisivePassThrough.value(SMA_LAST.length(ma_length))));
-        if (ma_length != 10) {
+        if (trailing_price != null) {
+            stop.submit = new Study(DecisivePassThrough.value(trailing_price).or(DecisivePassThrough.value(SMA_LAST.length(ma_length))));
+        } else {
             stop.submit = new Study(DecisivePassThrough.value(SMA_LAST.length(ma_length)));
         }
     }
