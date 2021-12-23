@@ -560,14 +560,17 @@ function _stop_loss_order(builder: PyramidBuilder, stop: number | Expr, share: n
 
 function _ma_trailing_price(builder: PyramidBuilder) {
     let ma_length = builder.config.ma_stop ?? 10;
-    let trailing_key = "sma10_trailing";
+    let trailing = builder.config.ma_stop_trailing ?? true;
+    let suffix = trailing ? "_trailing" : "";
+    let trailing_key = "sma10";
     if (ma_length == 10) {
-        trailing_key = "sma10_trailing";
+        trailing_key = "sma10";
     } else if (ma_length == 50) {
-        trailing_key = "sma50_trailing";
+        trailing_key = "sma50";
     } else if (ma_length == 21) {
-        trailing_key = "ema21_trailing";
+        trailing_key = "ema21";
     }
+    trailing_key += suffix;
     return builder.bookkeeper[trailing_key];
 }
 
