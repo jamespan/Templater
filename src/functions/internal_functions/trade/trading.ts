@@ -571,7 +571,7 @@ function _ma_trailing_price(builder: PyramidBuilder) {
         trailing_key = "ema21";
     }
     trailing_key += suffix;
-    return builder.bookkeeper[trailing_key];
+    return (builder.bookkeeper ?? {})[trailing_key];
 }
 
 function _ma_dynamic_stop(builder: PyramidBuilder, share: number, ma_length: number = 10, trailing_price: number = null): MarketOrder {
