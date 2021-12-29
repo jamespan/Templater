@@ -76,6 +76,14 @@ export const SMA_LAST = new (class extends VarExpr {
     return `MovingAverage(data=close(period=AggregationPeriod.DAY)[1],length=${x})`;
 }, 50);
 
+export const EMA_LAST = new (class extends VarExpr {
+    length(len: number): VarExpr {
+        return super.withParams(len);
+    }
+})((x) => {
+    return `MovingAverage(data=close(period=AggregationPeriod.DAY)[1],length=${x}, averageType=AverageType.EXPONENTIAL)`;
+}, 50);
+
 
 export const Between = new Call("Between", "high", 1, 2);
 export const Between_High = new (class extends Call {

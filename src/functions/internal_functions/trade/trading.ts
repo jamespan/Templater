@@ -20,7 +20,7 @@ import {
     HugeVolume, Lowest_Low, AvoidFallingKnife, NotExtended, PassThrough,
     SellRange,
     SMA_LAST, TightBidAskSpread,
-    Undercut, UpsideReversal, AvoidFallingKnifeShorting, NotExtendedShorting
+    Undercut, UpsideReversal, AvoidFallingKnifeShorting, NotExtendedShorting, EMA_LAST
 } from "./blocks";
 
 const defaults = (o: any, v: any) => o != null ? o : v;
@@ -577,17 +577,21 @@ function _ma_trailing_price(builder: PyramidBuilder) {
 function _ma_dynamic_stop(builder: PyramidBuilder, share: number, ma_length: number = 10, trailing_price: number = null): MarketOrder {
     let stop = new MarketOrder(builder.setup.symbol, builder.setup.close(), share);
     stop.tif = "GTC";
+    let ma_expr = SMA_LAST.length(ma_length);
+    if (ma_length === 21) {
+        ma_expr = EMA_LAST.length(ma_length);
+    }
     if (builder.setup.long) {
         if (trailing_price != null) {
-            stop.submit = new Study(DecisiveUndercut.value(trailing_price).or(DecisiveUndercut.value(SMA_LAST.length(ma_length))));
+            stop.submit = new Study(DecisiveUndercut.value(trailing_price).or(DecisiveUndercut.value(ma_expr)));
         } else {
-            stop.submit = new Study(DecisiveUndercut.value(SMA_LAST.length(ma_length)));
+            stop.submit = new Study(DecisiveUndercut.value(ma_expr));
         }
     } else {
         if (trailing_price != null) {
-            stop.submit = new Study(DecisivePassThrough.value(trailing_price).or(DecisivePassThrough.value(SMA_LAST.length(ma_length))));
+            stop.submit = new Study(DecisivePassThrough.value(trailing_price).or(DecisivePassThrough.value(ma_expr)));
         } else {
-            stop.submit = new Study(DecisivePassThrough.value(SMA_LAST.length(ma_length)));
+            stop.submit = new Study(DecisivePassThrough.value(ma_expr));
         }
     }
     stop.comment = "Undercut Moving Average";
