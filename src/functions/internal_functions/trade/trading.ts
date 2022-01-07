@@ -245,7 +245,7 @@ class Pyramid {
                 primary.trigger.tif = 'GTC';
             }
             let conditions = [AvoidMarketOpenVolatile, TightBidAskSpread] as Expr[];
-            conditions.push(this.builder.setup.long ? AvoidFallingKnife: AvoidFallingKnifeShorting);
+            conditions.push(this.builder.setup.long ? AvoidFallingKnife : AvoidFallingKnifeShorting);
             if (!this.builder.risk.isPercentage) {
                 if (this.builder.setup.long) {
                     conditions.push(NotExtended.over(`(${this.builder.setup.stop.financial()}*${(100 + Math.min(7, round(this.builder.risk.risk * 1.25, 2))).percent().toFixed(4)})`));
@@ -423,18 +423,15 @@ class Pyramid {
     }
 
     exit_base(): MultiOCO {
-        let symbol = this.builder.setup.symbol;
         let multi = new MultiOCO();
         let shares = [this.share.half(), this.share.left()];
         for (let i = 0; i < shares.length; ++i) {
             let oco = new OrderOCO();
-            oco.group.push(new LimitOrder(symbol, this.builder.setup.close(), shares[i], this.take));
-            oco.group.slice(-1)[0].profit = (this.take - this.limit) * shares[i];
-            oco.group.push(new StopOrder(symbol, this.builder.setup.close(), shares[i], this.limit));
-            oco.group.slice(-1)[0].submit = this.primary.group[1].submit;
-            oco.group.push(new StopOrder(symbol, this.builder.setup.close(), shares[i], this.stop));
-            oco.group.slice(-1)[0].cancel = this.primary.group[1].submit;
-            oco.group.slice(-1)[0].loss = (this.stop - this.limit) * shares[i] * (this.builder.setup.long ? -1 : 1);
+            this.primary.group.forEach((o: any) => {
+                let order = Object.assign(Object.create(Object.getPrototypeOf(o)), o)
+                order.share = shares[i];
+                oco.group.push(order)
+            });
             multi.orders.push(oco);
         }
         return multi;
@@ -460,7 +457,6 @@ class Pyramid {
     }
 
     exit_segment(params: any, base: MultiOCO): MultiOCO {
-        let symbol = this.builder.setup.symbol;
         let stop = params['stop'] ?? this.stop;
         let avg = params['avg'] ?? '5%';
         if (typeof avg === 'string' || avg instanceof String) {
@@ -473,9 +469,18 @@ class Pyramid {
         let stops = [-((avg - 1) * this.limit * this.share + stop * shares[0]) / (shares[1]), stop]
         for (let i = 0; i < shares.length; ++i) {
             let oco = base.orders[i];
-            oco.group[2] = new StopOrder(symbol, this.builder.setup.close(), shares[i], stops[i])
-            oco.group[2].cancel = this.primary.group[1].submit;
-            oco.group[2].loss = (stops[i] - this.limit) * shares[i] * (this.builder.setup.long ? -1 : 1);
+            let initial = oco.group.slice(-1)[0];
+            if (initial.comment != "Initial Stop-Loss") {
+                continue
+            }
+            if (this.builder.config.cond_sl) {
+                initial.submit = new Study(this.builder.setup.long ? Undercut.value(stops[i]) : PassThrough.value(stops[i]));
+            } else {
+                (initial as StopOrder).stop = stops[i];
+            }
+            initial.loss = (stops[i] - this.limit) * shares[i] * (this.builder.setup.long ? -1 : 1);
+            oco.group.pop();
+            oco.group.push(initial);
         }
         return base;
     }
