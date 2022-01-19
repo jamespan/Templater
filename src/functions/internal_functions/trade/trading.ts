@@ -380,10 +380,7 @@ class Pyramid {
             primary.group.push(new StopOrder(symbol, this.builder.setup.close(), this.share, `TRG${this.builder.setup.long ? "-" : "+"}${this.builder.risk.risk.financial()}%`));
         } else {
             if (this.builder.config.cond_sl) {
-                let stop = new MarketOrder(symbol, this.builder.setup.close(), this.share)
-                stop.tif = "GTC";
-                stop.submit = new Study(this.builder.setup.long ? Undercut.value(this.stop) : PassThrough.value(this.stop));
-                stop.cancel = cond;
+                let stop = _stop_loss_order(this.builder, this.stop, this.share, this.limit);
                 primary.group.push(stop);
             } else {
                 primary.group.push(new StopOrder(symbol, this.builder.setup.close(), this.share, this.stop));
@@ -550,9 +547,15 @@ function _stop_loss_order(builder: PyramidBuilder, stop: number | Expr, share: n
         order = new MarketOrder(symbol, builder.setup.close(), share);
         order.tif = "GTC";
         if (builder.setup.long) {
-            order.submit = new Study(Undercut.value(stop));
+            order.submit = new Study(AvoidMarketOpenVolatile.and(Undercut.value(stop)));
+            if (cost !== null) {
+                order.submit.body = (order.submit.body as Expr).or(Undercut.value(cost * (1 - 7 / 100)));
+            }
         } else {
-            order.submit = new Study(PassThrough.value(stop));
+            order.submit = new Study(AvoidMarketOpenVolatile.and(PassThrough.value(stop)));
+            if (cost !== null) {
+                order.submit.body = (order.submit.body as Expr).or(PassThrough.value(cost * (1 + 7 / 100)));
+            }
         }
     } else {
         order = new StopOrder(symbol, builder.setup.close(), share, typeof stop == "number" ? stop : stop.toString());
@@ -588,15 +591,15 @@ function _ma_dynamic_stop(builder: PyramidBuilder, share: number, ma_length: num
     }
     if (builder.setup.long) {
         if (trailing_price != null) {
-            stop.submit = new Study(DecisiveUndercut.value(trailing_price).or(DecisiveUndercut.value(ma_expr)));
+            stop.submit = new Study(AvoidMarketOpenVolatile.and(DecisiveUndercut.value(trailing_price).or(DecisiveUndercut.value(ma_expr))));
         } else {
-            stop.submit = new Study(DecisiveUndercut.value(ma_expr));
+            stop.submit = new Study(AvoidMarketOpenVolatile.and(DecisiveUndercut.value(ma_expr)));
         }
     } else {
         if (trailing_price != null) {
-            stop.submit = new Study(DecisivePassThrough.value(trailing_price).or(DecisivePassThrough.value(ma_expr)));
+            stop.submit = new Study(AvoidMarketOpenVolatile.and(DecisivePassThrough.value(trailing_price).or(DecisivePassThrough.value(ma_expr))));
         } else {
-            stop.submit = new Study(DecisivePassThrough.value(ma_expr));
+            stop.submit = new Study(AvoidMarketOpenVolatile.and(DecisivePassThrough.value(ma_expr)));
         }
     }
     stop.comment = "Undercut Moving Average";
