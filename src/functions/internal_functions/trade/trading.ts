@@ -677,39 +677,48 @@ export function riding(builder: PyramidBuilder, params: any) {
 
     for (const idx in params) {
         for (const [key, config] of Object.entries(params[idx])) {
-            let multi = new MultiOCO();
+            let shares = config.shares;
+            let target = evaluate(config.target);
+            let stop = config['support'];
+
+            let pyramid = new Pyramid(builder, 0, `${shares}@${stop}`);
+            pyramid.take = target;
+            pyramid.build();
+            pyramid.exit();
+            let multi = pyramid?.exit_base();
             strategies.set(key, multi);
 
-            // @ts-ignore
-            let shares = config.shares;
-            // @ts-ignore
-            let target = evaluate(config.target);
-            // @ts-ignore
-            let stop = config['support'];
-            let drawback = Math.abs(((Math.max(builder.bookkeeper?.highest_high ?? 0, target) / stop) - 1) / 2 * 100);
-            // @ts-ignore
-            if (['half', 'third'].contains(config['part'])) {
-                // @ts-ignore
-                let keep = config['part'] == 'half' ? shares.half() : shares.one_third();
-                let amount = shares - keep;
-                let oco = _selling_into_weakness(builder, amount, stop, drawback, target);
-                multi.orders.push(oco);
-                shares = keep;
-            }
-            let oco = _selling_into_weakness(builder, shares, stop, drawback, target);
-            if (config.selling_into_strength ?? true) {
-                let reversal = new MarketOrder(symbol, builder.setup.close(), shares);
-                reversal.submit = new Study(new And(BeforeMarketClose, new BiExpr(ClsRange, '<', 0.6), new BiExpr('high(period=AggregationPeriod.DAY)', '>=', stop + (target - stop) * 0.6)));
-                reversal.tif = "GTC";
-                reversal.comment = "Downside Reversal";
-                oco.group.unshift(reversal);
-
-                oco.group.unshift(new LimitOrder(symbol, builder.setup.close(), shares, target))
-                oco.group[0].comment = "Profit Taking";
+            for (let i = 0; i < multi.orders.length; ++i) {
+                if (i == 0) {
+                    continue
+                }
+                multi.orders[i].group.shift();
             }
 
-            multi.orders.push(oco);
-            multi.orders = multi.orders.reverse();
+            // let drawback = Math.abs(((Math.max(builder.bookkeeper?.highest_high ?? 0, target) / stop) - 1) / 2 * 100);
+            // // @ts-ignore
+            // if (['half', 'third'].contains(config['part'])) {
+            //     // @ts-ignore
+            //     let keep = config['part'] == 'half' ? shares.half() : shares.one_third();
+            //     let amount = shares - keep;
+            //     let oco = _selling_into_weakness(builder, amount, stop, drawback, target);
+            //     multi.orders.push(oco);
+            //     shares = keep;
+            // }
+            // let oco = _selling_into_weakness(builder, shares, stop, drawback, target);
+            // if (config.selling_into_strength ?? true) {
+            //     let reversal = new MarketOrder(symbol, builder.setup.close(), shares);
+            //     reversal.submit = new Study(new And(BeforeMarketClose, new BiExpr(ClsRange, '<', 0.6), new BiExpr('high(period=AggregationPeriod.DAY)', '>=', stop + (target - stop) * 0.6)));
+            //     reversal.tif = "GTC";
+            //     reversal.comment = "Downside Reversal";
+            //     oco.group.unshift(reversal);
+            //
+            //     oco.group.unshift(new LimitOrder(symbol, builder.setup.close(), shares, target))
+            //     oco.group[0].comment = "Profit Taking";
+            // }
+            //
+            // multi.orders.push(oco);
+            // multi.orders = multi.orders.reverse();
         }
     }
     return strategies;
