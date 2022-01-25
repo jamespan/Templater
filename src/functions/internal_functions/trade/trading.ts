@@ -388,9 +388,9 @@ class Pyramid {
             }
         }
         primary.group.slice(-1)[0].comment = "Initial Stop-Loss";
-        primary.group.slice(-1)[0].loss = (this.limit * this.builder.risk.risk / 100) * this.share;
+        primary.group.slice(-1)[0].loss = Math.max(0, (this.limit - this.stop) * this.share * (this.builder.setup.long ? 1 : -1));
 
-        if (this.limit == this.price) {
+        if (this.limit === this.price) {
             if ((this.builder.setup.long && highest_high >= this.protect) || (!this.builder.setup.long && lowest_low <= this.protect)) {
                 primary.group.pop();
             } else {
@@ -419,15 +419,16 @@ class Pyramid {
         }
     }
 
-    exit_base(): MultiOCO {
+    exit_base(part: number = 2): MultiOCO {
         let multi = new MultiOCO();
-        let shares = [this.share.half(), this.share.left()];
+        let shares = [Math.round(this.share / part)];
+        shares.push(this.share - shares[0]);
         for (let i = 0; i < shares.length; ++i) {
             let oco = new OrderOCO();
             this.primary.group.forEach((o: any) => {
                 let order = Object.assign(Object.create(Object.getPrototypeOf(o)), o)
                 order.share = shares[i];
-                oco.group.push(order)
+                oco.group.push(order);
             });
             multi.orders.push(oco);
         }
@@ -651,6 +652,7 @@ function _selling_into_weakness(builder: PyramidBuilder, share: number, stop: nu
 
 export function riding(builder: PyramidBuilder, params: any) {
     let strategies = new Map();
+    let pyramid = null;
     if (builder.config['trades'] != null) {
         let trades = builder.config['trades'].map((x: string) => x.split('@', 2));
         let total = 0;
@@ -661,7 +663,7 @@ export function riding(builder: PyramidBuilder, params: any) {
             share += s
         }
         let trade = share + "@" + (total / share);
-        let pyramid = new Pyramid(builder, 0, trade);
+        pyramid = new Pyramid(builder, 0, trade);
         pyramid.build();
         pyramid.exit();
         let multi = pyramid.exits['universe'];
@@ -681,44 +683,40 @@ export function riding(builder: PyramidBuilder, params: any) {
             let target = evaluate(config.target);
             let stop = config['support'];
 
-            let pyramid = new Pyramid(builder, 0, `${shares}@${stop}`);
+            if (pyramid == null) {
+                pyramid = new Pyramid(builder, 0, `${shares}@${stop}`);
+            }
+
             pyramid.take = target;
             pyramid.build();
             pyramid.exit();
-            let multi = pyramid?.exit_base();
+
+            let multi;
+            if (['half', 'third'].contains(config['part'])) {
+                multi = pyramid.exit_base(config['part'] == 'half' ? 2 : 3);
+            } else {
+                multi = pyramid.exit_base(config['part']);
+            }
             strategies.set(key, multi);
 
-            for (let i = 0; i < multi.orders.length; ++i) {
-                if (i == 0) {
-                    continue
-                }
-                multi.orders[i].group.shift();
-            }
+            multi.orders.forEach(oco => {
+                oco.group.filter(x => x.comment == "Round-Trip").forEach(o => {
+                    (o as StopOrder).stop = stop.financial();
+                })
+            });
 
-            // let drawback = Math.abs(((Math.max(builder.bookkeeper?.highest_high ?? 0, target) / stop) - 1) / 2 * 100);
-            // // @ts-ignore
-            // if (['half', 'third'].contains(config['part'])) {
-            //     // @ts-ignore
-            //     let keep = config['part'] == 'half' ? shares.half() : shares.one_third();
-            //     let amount = shares - keep;
-            //     let oco = _selling_into_weakness(builder, amount, stop, drawback, target);
-            //     multi.orders.push(oco);
-            //     shares = keep;
-            // }
-            // let oco = _selling_into_weakness(builder, shares, stop, drawback, target);
-            // if (config.selling_into_strength ?? true) {
-            //     let reversal = new MarketOrder(symbol, builder.setup.close(), shares);
-            //     reversal.submit = new Study(new And(BeforeMarketClose, new BiExpr(ClsRange, '<', 0.6), new BiExpr('high(period=AggregationPeriod.DAY)', '>=', stop + (target - stop) * 0.6)));
-            //     reversal.tif = "GTC";
-            //     reversal.comment = "Downside Reversal";
-            //     oco.group.unshift(reversal);
-            //
-            //     oco.group.unshift(new LimitOrder(symbol, builder.setup.close(), shares, target))
-            //     oco.group[0].comment = "Profit Taking";
-            // }
-            //
-            // multi.orders.push(oco);
-            // multi.orders = multi.orders.reverse();
+            let reversal = new MarketOrder(symbol, builder.setup.close(), multi.orders[0].group[0].share);
+            if (builder.setup.long) {
+                reversal.submit = new Study(new And(BeforeMarketClose, new BiExpr(ClsRange, '<', 0.6), new BiExpr('high(period=AggregationPeriod.DAY)', '>=', stop + (target - stop) * 0.6)));
+            } else {
+                reversal.submit = new Study(new And(BeforeMarketClose, new BiExpr(ClsRange, '>', 0.6), new BiExpr('low(period=AggregationPeriod.DAY)', '<=', stop + (target - stop) * 0.6)));
+            }
+            reversal.tif = "GTC";
+            reversal.comment = "Against Reversal";
+            multi.orders[0].group.push(reversal);
+
+            // remove profit taking
+            multi.orders[1].group.shift();
         }
     }
     return strategies;
