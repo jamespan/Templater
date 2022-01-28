@@ -378,6 +378,7 @@ class Pyramid {
 
         if (this.limit !== this.price && this.builder.risk.isPercentage) {
             primary.group.push(new StopOrder(symbol, this.builder.setup.close(), this.share, `TRG${this.builder.setup.long ? "-" : "+"}${this.builder.risk.risk.financial()}%`));
+            primary.group.slice(-1)[0].loss = (this.limit * this.builder.risk.risk / 100) * this.share;
         } else {
             if (this.builder.config.cond_sl) {
                 let stop = _stop_loss_order(this.builder, this.stop, this.share, this.limit);
@@ -386,9 +387,9 @@ class Pyramid {
                 primary.group.push(new StopOrder(symbol, this.builder.setup.close(), this.share, this.stop));
                 primary.group.slice(-1)[0].cancel = cond;
             }
+            primary.group.slice(-1)[0].loss = Math.max(0, (this.limit - this.stop) * this.share * (this.builder.setup.long ? 1 : -1));
         }
         primary.group.slice(-1)[0].comment = "Initial Stop-Loss";
-        primary.group.slice(-1)[0].loss = Math.max(0, (this.limit - this.stop) * this.share * (this.builder.setup.long ? 1 : -1));
 
         if (this.limit === this.price) {
             if ((this.builder.setup.long && highest_high >= this.protect) || (!this.builder.setup.long && lowest_low <= this.protect)) {
