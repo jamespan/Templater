@@ -688,6 +688,7 @@ export function riding(builder: PyramidBuilder, params: any) {
             }
 
             pyramid.take = target;
+            pyramid.share = shares;
             pyramid.build();
             pyramid.exit();
 
