@@ -20,7 +20,7 @@ import {
     HugeVolume, Lowest_Low, AvoidFallingKnife, NotExtended, PassThrough,
     SellRange,
     SMA_LAST, TightBidAskSpread,
-    Undercut, UpsideReversal, AvoidFallingKnifeShorting, NotExtendedShorting, EMA_LAST
+    Undercut, UpsideReversal, ShortingIntoStrength, NotExtendedShorting, EMA_LAST
 } from "./blocks";
 
 const defaults = (o: any, v: any) => o != null ? o : v;
@@ -245,7 +245,7 @@ class Pyramid {
                 primary.trigger.tif = 'GTC';
             }
             let conditions = [AvoidMarketOpenVolatile, TightBidAskSpread] as Expr[];
-            conditions.push(this.builder.setup.long ? AvoidFallingKnife : AvoidFallingKnifeShorting);
+            conditions.push(this.builder.setup.long ? AvoidFallingKnife : ShortingIntoStrength);
             if (!this.builder.risk.isPercentage) {
                 if (this.builder.setup.long) {
                     conditions.push(NotExtended.over(`(${this.builder.setup.stop.financial()}*${(100 + Math.min(7, round(this.builder.risk.risk * 1.25, 2))).percent().toFixed(4)})`));

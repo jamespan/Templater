@@ -107,7 +107,7 @@ export const BidAskSpread = new Expr("(close(priceType=PriceType.ASK)/close(pric
 export const TightBidAskSpread = new BiExpr(BidAskSpread, '<', 0.5);
 
 export const AvoidFallingKnife = new BiExpr("close", ">", "close(period=AggregationPeriod.DAY)[1]");
-export const AvoidFallingKnifeShorting = new BiExpr("close", "<", "close(period=AggregationPeriod.DAY)[1]");
+export const ShortingIntoStrength = new BiExpr("close", ">", "close(period=AggregationPeriod.DAY)[1]");
 
 export const TodayLowUndercutPrevLow = new BiExpr("low(period=AggregationPeriod.DAY)", '<', 'low(period=AggregationPeriod.DAY)[1]');
 export const UpsideReversal = TodayLowUndercutPrevLow.and(PassThrough.value('high(period=AggregationPeriod.DAY)[1]+0.1'));
