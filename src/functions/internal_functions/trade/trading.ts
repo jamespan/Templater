@@ -371,15 +371,15 @@ class Pyramid {
             }
         }
 
-        if (this.limit === this.price && this.builder.setup.long) {
-            let ma_trailing_stop = (this.builder.bookkeeper?.sma10_trailing ?? 0) * 0.985;
-            if (this.builder.setup.long && ma_trailing_stop > this.limit) {
-                primary.group.pop();
-            }
-            if (!this.builder.setup.long && ma_trailing_stop < this.limit) {
-                primary.group.pop();
-            }
-        }
+        // if (this.limit === this.price && this.builder.setup.long) {
+        //     let ma_trailing_stop = (this.builder.bookkeeper?.sma10_trailing ?? 0) * 0.985;
+        //     if (this.builder.setup.long && ma_trailing_stop > this.limit) {
+        //         primary.group.pop();
+        //     }
+        //     if (!this.builder.setup.long && ma_trailing_stop < this.limit) {
+        //         primary.group.pop();
+        //     }
+        // }
 
         if (this.limit !== this.price && this.builder.risk.isPercentage) {
             primary.group.push(new StopOrder(symbol, this.builder.setup.close(), this.share, `TRG${this.builder.setup.long ? "-" : "+"}${this.builder.risk.risk.financial()}%`));
