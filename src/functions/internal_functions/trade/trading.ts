@@ -386,6 +386,10 @@ class Pyramid {
             primary.group.slice(-1)[0].loss = (this.limit * this.builder.risk.risk / 100) * this.share;
         } else {
             if (this.builder.config.cond_sl) {
+                let insurance = new StopOrder(symbol, this.builder.setup.close(), this.share, this.limit * (100 - 7 * (this.builder.setup.long ? 1 : -1)).percent());
+                insurance.comment = "Emergency Stop-Loss";
+                primary.group.push(insurance);
+
                 let stop = _stop_loss_order(this.builder, this.stop, this.share, this.limit);
                 primary.group.push(stop);
             } else {
@@ -555,14 +559,14 @@ function _stop_loss_order(builder: PyramidBuilder, stop: number | Expr, share: n
         order.tif = "GTC";
         if (builder.setup.long) {
             order.submit = new Study(AvoidMarketOpenVolatile.and(Undercut.value(stop)));
-            if (cost !== null) {
-                order.submit.body = (order.submit.body as Expr).or(Undercut.value(cost * (1 - 7 / 100)));
-            }
+            // if (cost !== null) {
+            //     order.submit.body = (order.submit.body as Expr).or(Undercut.value(cost * (1 - 7 / 100)));
+            // }
         } else {
             order.submit = new Study(AvoidMarketOpenVolatile.and(PassThrough.value(stop)));
-            if (cost !== null) {
-                order.submit.body = (order.submit.body as Expr).or(PassThrough.value(cost * (1 + 7 / 100)));
-            }
+            // if (cost !== null) {
+            //     order.submit.body = (order.submit.body as Expr).or(PassThrough.value(cost * (1 + 7 / 100)));
+            // }
         }
     } else {
         order = new StopOrder(symbol, builder.setup.close(), share, typeof stop == "number" ? stop : stop.toString());
