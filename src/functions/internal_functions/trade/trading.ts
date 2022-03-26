@@ -248,9 +248,9 @@ class Pyramid {
             conditions.push(this.builder.setup.long ? AvoidFallingKnife : ShortingIntoStrength);
             if (!this.builder.risk.isPercentage) {
                 if (this.builder.setup.long) {
-                    conditions.push(NotExtended.over(`(${this.builder.setup.stop.financial()}*${(100 + Math.min(7, round(this.builder.risk.risk * 1.25, 2))).percent().toFixed(4)})`));
+                    conditions.push(NotExtended.over(`(${this.builder.setup.stop.financial()}*${(100 + Math.min(7, round(this.builder.risk.risk * 1.5, 2))).percent().toFixed(4)})`));
                 } else {
-                    conditions.push(NotExtendedShorting.over(`(${this.builder.setup.stop.financial()}*${(100 - Math.min(5, round(this.builder.risk.risk * 1.25, 2))).percent().toFixed(4)})`));
+                    conditions.push(NotExtendedShorting.over(`(${this.builder.setup.stop.financial()}*${(100 - Math.min(5, round(this.builder.risk.risk * 1.5, 2))).percent().toFixed(4)})`));
                 }
             }
             if (this.builder.setup.pattern.contains('Pullback')) {
