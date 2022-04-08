@@ -390,6 +390,14 @@ class Pyramid {
                 insurance.comment = "Emergency Stop-Loss";
                 primary.group.push(insurance);
 
+                if (this.builder.setup.pattern.contains('Volatility Contraction')) {
+                    if (this.builder.bookkeeper?.lower_low?.length >= 3 && this.builder.bookkeeper.lower_low[2] >= this.stop * 1.01) {
+                        let violation = _stop_loss_order(this.builder, this.builder.bookkeeper.lower_low[2], this.share, null);
+                        violation.comment = "Violation Stop-Loss";
+                        primary.group.push(violation);
+                    }
+                }
+
                 let stop = _stop_loss_order(this.builder, this.stop, this.share, this.limit);
                 primary.group.push(stop);
             } else {
