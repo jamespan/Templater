@@ -312,7 +312,7 @@ class Pyramid {
         }
 
         // round-trip sell rule
-        this.protect = this.price * (100 + 10 * (this.builder.setup.long ? 1 : -1)).percent();
+        this.protect = this.builder.setup.pivot * (100 + 10 * (this.builder.setup.long ? 1 : -1)).percent();
         if (this.builder.setup.long) {
             this.protect = Math.min(this.price + (this.price - this.stop) * 2, this.protect);
         } else {
@@ -327,12 +327,12 @@ class Pyramid {
                 if (this.builder.setup.long) {
                     let half_profit_stop = HalfProfit.with(this.price, highest_high);
                     let order = _stop_loss_order(this.builder, half_profit_stop, this.share);
-                    (order.submit as Study).body = new And((order.submit as Study).body as Expr, new BiExpr(Highest_High.of(highest_high), ">=", `${this.price.financial()}*(100+${lock_half_profit.financial()})/100`));
+                    (order.submit as Study).body = new And((order.submit as Study).body as Expr, new BiExpr(Highest_High.of(highest_high), ">=", `${this.builder.setup.pivot.financial()}*(100+${lock_half_profit.financial()})/100`));
                     primary.group.push(order);
                 } else {
                     let half_profit_stop = HalfProfitShorting.with(this.price, lowest_low);
                     let order = _stop_loss_order(this.builder, half_profit_stop, this.share);
-                    (order.submit as Study).body = new And((order.submit as Study).body as Expr, new BiExpr(Lowest_Low.of(lowest_low), "<=", `${this.price.financial()}*(100-${lock_half_profit.financial()})/100`));
+                    (order.submit as Study).body = new And((order.submit as Study).body as Expr, new BiExpr(Lowest_Low.of(lowest_low), "<=", `${this.builder.setup.pivot.financial()}*(100-${lock_half_profit.financial()})/100`));
                     primary.group.push(order);
                 }
             } else {
@@ -391,7 +391,7 @@ class Pyramid {
                 primary.group.push(insurance);
 
                 if (this.builder.setup.pattern.contains('Volatility Contraction')) {
-                    if (this.builder.bookkeeper?.lower_low?.length >= 3 && this.builder.bookkeeper.lower_low[2] >= this.stop * 1.01) {
+                    if (this.builder.bookkeeper?.lower_low?.length >= 3 && this.builder.bookkeeper.lower_low[2] >= this.stop * 1.005) {
                         let violation = _stop_loss_order(this.builder, this.builder.bookkeeper.lower_low[2], this.share, null);
                         violation.comment = "Violation Stop-Loss";
                         primary.group.push(violation);
