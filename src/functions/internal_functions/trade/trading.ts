@@ -396,6 +396,25 @@ class Pyramid {
                         violation.comment = "Violation Stop-Loss";
                         primary.group.push(violation);
                     }
+                    if (this.builder.bookkeeper?.vcp_violation?.length > 0) {
+                        let violation = new MarketOrder(symbol, this.builder.setup.close(), this.share);
+                        violation.tif = "GTC";
+                        let combined = null;
+                        if (this.builder.bookkeeper?.vcp_violation?.contains("closing low beats closing high")) {
+                            combined = new BiExpr(ClsRange, '<', 0.4);
+                        }
+                        if (this.builder.bookkeeper?.vcp_violation?.contains("down days beats up days")) {
+                            let cond = new BiExpr("close", '<', "close(period=AggregationPeriod.DAY)[1]");
+                            if (combined == null) {
+                                combined = cond;
+                            } else {
+                                combined = new Or(combined, cond);
+                            }
+                        }
+                        violation.submit = new Study(new And(BeforeMarketClose, combined));
+                        violation.comment = "Violation Expectation Break";
+                        primary.group.push(violation);
+                    }
                 }
 
                 let stop = _stop_loss_order(this.builder, this.stop, this.share, this.limit);
