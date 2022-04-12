@@ -304,7 +304,7 @@ class Pyramid {
         let trailing_price = _ma_trailing_price(this.builder);
         if (this.limit === this.price && trailing_price != null) {
             if ((this.builder.setup.long && (trailing_price < this.builder.bookkeeper?.price - this.builder.bookkeeper?.atr))
-                || (!this.builder.setup.long && (trailing_price > this.builder.bookkeeper?.price - this.builder.bookkeeper?.atr))) {
+                || (!this.builder.setup.long && (trailing_price > this.builder.bookkeeper?.price + this.builder.bookkeeper?.atr))) {
                 primary.group.push(_ma_dynamic_stop(this.builder, this.share, this.builder.config.ma_stop ?? 10, trailing_price));
                 if (this.builder.setup.long) {
                     primary.group.slice(-1)[0].loss = Math.max((this.price - trailing_price * 0.985) * this.share, 0);
@@ -316,7 +316,7 @@ class Pyramid {
 
         if (this.builder.trendline?.close?.regression) {
             let stop = _stop_loss_order(this.builder,
-                this.builder.trendline?.close?.regression * (100 - 1).percent(), this.share, this.limit);
+                this.builder.trendline?.close?.regression * (100 - 1 * (this.builder.setup.long ? 1: -1)).percent(), this.share, this.limit);
             stop.comment = "Undercut Trendline";
             primary.group.push(stop);
         }
@@ -611,7 +611,7 @@ function _stop_loss_order(builder: PyramidBuilder, stop: number | Expr, share: n
         order = new StopOrder(symbol, builder.setup.close(), share, typeof stop == "number" ? stop : stop.toString());
     }
     if (cost !== null && typeof stop == "number") {
-        order.loss = Math.max((cost - stop) * share, 0);
+        order.loss = Math.max((cost - stop) * share * (builder.setup.long ? 1: -1), 0);
     }
     return order;
 }
