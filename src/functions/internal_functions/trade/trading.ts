@@ -83,10 +83,13 @@ class Setup {
     public scale: number;
     public range: number;
 
-    constructor(input: any) {
+    constructor(input: any, trendline: any) {
         this.symbol = input.symbol;
         this._direction = input.direction ?? 'long';
         this.pivot = evaluate(input.pivot);
+        if (trendline?.open?.regression) {
+            this.pivot = trendline?.open?.regression;
+        }
         this.stop = input.stop ?? input.pivot;
         if (typeof this.stop === 'string' || this.stop instanceof String) {
             // 100*0.985 etc
@@ -311,6 +314,13 @@ class Pyramid {
             }
         }
 
+        if (this.builder.trendline?.close?.regression) {
+            let stop = _stop_loss_order(this.builder,
+                this.builder.trendline?.close?.regression * (100 - 1).percent(), this.share, this.limit);
+            stop.comment = "Undercut Trendline";
+            primary.group.push(stop);
+        }
+
         // round-trip sell rule
         this.protect = this.builder.setup.pivot * (100 + 10 * (this.builder.setup.long ? 1 : -1)).percent();
         if (this.builder.setup.long) {
@@ -526,14 +536,16 @@ export class PyramidBuilder {
     public setup: Setup;
     public risk: any;
     public config: any;
+    public trendline: any;
     public exit: any;
     public bookkeeper: any;
 
-    constructor(style: any, setup: any, risk: any, config: any, exit: any, bookkeeper: any) {
+    constructor(style: any, setup: any, risk: any, config: any, trendline: any, exit: any, bookkeeper: any) {
         this.style = style
         this.setup = setup
         this.risk = risk
         this.config = config
+        this.trendline = trendline
         this.exit = exit
         this.bookkeeper = bookkeeper
     }
@@ -555,10 +567,10 @@ export class PyramidBuilder {
 }
 
 export function building(params: any) {
-    let setup = new Setup(params.build.setup);
+    let setup = new Setup(params.build.setup, params.build.trendline);
     setup.init();
     let risk = new Risk(params.build.style, params['assets'], setup, params.build['pyramid']['trades'], params.build['pyramid']['count']);
-    let builder = new PyramidBuilder(params.build.style, setup, risk, params.build['pyramid'], params.build['exit'], params.bookkeeper)
+    let builder = new PyramidBuilder(params.build.style, setup, risk, params.build['pyramid'], params.build['trendline'], params.build['exit'], params.bookkeeper)
     return builder.build();
 }
 
