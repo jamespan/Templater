@@ -58,7 +58,14 @@ export const AvoidMarketOpenVolatile = new VarExpr((x) => {
     return `Between(SecondsTillTime(${x}), ${(-390 + delay_minutes) * 60}, 0)`;
 }, 935);
 
-export const BeforeMarketClose = new And(AvoidMarketOpenVolatile, new Call("Between", 'SecondsTillTime(1600)', 0, 60));
+export function FromTodayOn() {
+    let str = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+    return new BiExpr("GetYYYYMMDD()", ">=", str)
+}
+
+export function BeforeMarketClose(){
+    return new And(FromTodayOn(), new And(AvoidMarketOpenVolatile, new Call("Between", 'SecondsTillTime(1600)', 0, 60)));
+}
 
 export const SMA = new (class extends VarExpr {
     length(len: number): VarExpr {

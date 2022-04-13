@@ -297,7 +297,7 @@ class Pyramid {
         if (this.builder.config.sell_without_cushion ?? false) {
             let order = new MarketOrder(symbol, this.builder.setup.close(), this.share);
             order.tif = "GTC";
-            order.submit = new Study(new And(BeforeMarketClose, Undercut.value(`${this.price.financial()}*1.05`)));
+            order.submit = new Study(new And(BeforeMarketClose(), Undercut.value(`${this.price.financial()}*1.05`)));
             order.comment = "Exit without enough Cushion"
             primary.group.push(order);
         }
@@ -421,7 +421,7 @@ class Pyramid {
                                 combined = new Or(combined, cond);
                             }
                         }
-                        violation.submit = new Study(new And(BeforeMarketClose, combined));
+                        violation.submit = new Study(new And(BeforeMarketClose(), combined));
                         violation.comment = "Violation Expectation Break";
                         primary.group.push(violation);
                     }
@@ -757,9 +757,9 @@ export function riding(builder: PyramidBuilder, params: any) {
 
             let reversal = new MarketOrder(symbol, builder.setup.close(), multi.orders[0].group[0].share);
             if (builder.setup.long) {
-                reversal.submit = new Study(new And(BeforeMarketClose, new BiExpr(ClsRange, '<', 0.6), new BiExpr('high(period=AggregationPeriod.DAY)', '>=', stop + (target - stop) * 0.6)));
+                reversal.submit = new Study(new And(BeforeMarketClose(), new BiExpr(ClsRange, '<', 0.6), new BiExpr('high(period=AggregationPeriod.DAY)', '>=', stop + (target - stop) * 0.6)));
             } else {
-                reversal.submit = new Study(new And(BeforeMarketClose, new BiExpr(ClsRange, '>', 0.6), new BiExpr('low(period=AggregationPeriod.DAY)', '<=', stop + (target - stop) * 0.6)));
+                reversal.submit = new Study(new And(BeforeMarketClose(), new BiExpr(ClsRange, '>', 0.6), new BiExpr('low(period=AggregationPeriod.DAY)', '<=', stop + (target - stop) * 0.6)));
             }
             reversal.tif = "GTC";
             reversal.comment = "Against Reversal";
