@@ -302,8 +302,10 @@ class Pyramid {
             primary.group.push(order);
         }
         let trailing_price = _ma_trailing_price(this.builder);
+        let ma_stop_ignore_atr = this.builder.config.ma_stop_ignore_atr ?? false;
         if (this.limit === this.price && trailing_price != null) {
-            if ((this.builder.setup.long && (trailing_price < this.builder.bookkeeper?.price - this.builder.bookkeeper?.atr))
+            if (ma_stop_ignore_atr
+                || (this.builder.setup.long && (trailing_price < this.builder.bookkeeper?.price - this.builder.bookkeeper?.atr))
                 || (!this.builder.setup.long && (trailing_price > this.builder.bookkeeper?.price + this.builder.bookkeeper?.atr))) {
                 primary.group.push(_ma_dynamic_stop(this.builder, this.share, this.builder.config.ma_stop ?? 10, trailing_price));
                 if (this.builder.setup.long) {
