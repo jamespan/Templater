@@ -425,7 +425,9 @@ class Pyramid {
                         }
                         violation.submit = new Study(new And(BeforeMarketClose(), combined));
                         violation.comment = "Violation Expectation Break";
-                        primary.group.push(violation);
+                        if (combined != null) {
+                            primary.group.push(violation);
+                        }
                     }
                 }
 
