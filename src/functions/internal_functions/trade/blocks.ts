@@ -75,6 +75,14 @@ export const SMA = new (class extends VarExpr {
     return `MovingAverage(data=close(period=AggregationPeriod.DAY),length=${x})`;
 }, 50);
 
+export const EMA = new (class extends VarExpr {
+    length(len: number): VarExpr {
+        return super.withParams(len);
+    }
+})((x) => {
+    return `MovingAverage(data=close(period=AggregationPeriod.DAY),length=${x}, averageType=AverageType.EXPONENTIAL)`;
+}, 50);
+
 export const SMA_LAST = new (class extends VarExpr {
     length(len: number): VarExpr {
         return super.withParams(len);

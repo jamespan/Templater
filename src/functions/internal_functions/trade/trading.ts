@@ -20,7 +20,7 @@ import {
     HugeVolume, Lowest_Low, AvoidFallingKnife, NotExtended, PassThrough,
     SellRange,
     SMA_LAST, TightBidAskSpread,
-    Undercut, UpsideReversal, ShortingIntoStrength, NotExtendedShorting, EMA_LAST
+    Undercut, UpsideReversal, ShortingIntoStrength, NotExtendedShorting, EMA_LAST, EMA
 } from "./blocks";
 
 const defaults = (o: any, v: any) => o != null ? o : v;
@@ -417,11 +417,11 @@ class Pyramid {
                         }
                         if (this.builder.bookkeeper?.vcp_violation?.contains("down days beats up days")) {
                             let cond = new BiExpr("close", '<', "close(period=AggregationPeriod.DAY)[1]");
-                            if (combined == null) {
-                                combined = cond;
-                            } else {
-                                combined = new Or(combined, cond);
-                            }
+                            combined = combined == null ? cond : new Or(combined, cond);
+                        }
+                        if (this.builder.bookkeeper?.vcp_violation?.contains("exit if close below 20 day")) {
+                            let cond = new BiExpr("close", '<', EMA.length(21));
+                            combined = combined == null ? cond : new Or(combined, cond);
                         }
                         violation.submit = new Study(new And(BeforeMarketClose(), combined));
                         violation.comment = "Violation Expectation Break";
