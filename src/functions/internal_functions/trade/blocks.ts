@@ -17,6 +17,12 @@ export const HugeVolume = new (class extends BiExpr {
     }
 })(VolumeEstimate, '>', 1);
 
+export const LightVolume = new (class extends BiExpr {
+    over(value: any): BiExpr {
+        return super.with(value);
+    }
+})(VolumeEstimate, '<', 1);
+
 export const Undercut = new (class extends BiExpr {
     value(value: any): BiExpr {
         return super.with(value);

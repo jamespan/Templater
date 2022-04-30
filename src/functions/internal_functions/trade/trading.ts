@@ -20,7 +20,7 @@ import {
     HugeVolume, Lowest_Low, AvoidFallingKnife, NotExtended, PassThrough,
     SellRange,
     SMA_LAST, TightBidAskSpread,
-    Undercut, UpsideReversal, ShortingIntoStrength, NotExtendedShorting, EMA_LAST, EMA
+    Undercut, UpsideReversal, ShortingIntoStrength, NotExtendedShorting, EMA_LAST, EMA, LightVolume
 } from "./blocks";
 
 const defaults = (o: any, v: any) => o != null ? o : v;
@@ -277,9 +277,17 @@ class Pyramid {
                     let avg = this.builder.config.volume != null ?
                         parseInt(this.builder.config.volume.split(',').join('')) :
                         "MovingAverage(data=VOLUME(period=AggregationPeriod.DAY),length=50)[1]";
-                    conditions.push(HugeVolume.over(`(${avg}*1.4)`));
+                    if (this.builder.setup.long) {
+                        conditions.push(HugeVolume.over(`(${avg}*1.4)`));
+                    } else {
+                        conditions.push(LightVolume.over(`(${avg})`));
+                    }
                 } else {
-                    conditions.push(HugeVolume.over(`(volume(period=AggregationPeriod.DAY)[1])`));
+                    if (this.builder.setup.long) {
+                        conditions.push(HugeVolume.over(`(volume(period=AggregationPeriod.DAY)[1])`));
+                    } else {
+                        conditions.push(LightVolume.over(`(volume(period=AggregationPeriod.DAY)[1])`));
+                    }
                 }
             }
             primary.trigger.submit = new Study(new And(...conditions));
