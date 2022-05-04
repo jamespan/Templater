@@ -326,7 +326,7 @@ class Pyramid {
 
         if (this.builder.trendline?.close?.regression) {
             let stop = _stop_loss_order(this.builder,
-                this.builder.trendline?.close?.regression * (100 - 1 * (this.builder.setup.long ? 1: -1)).percent(), this.share, this.limit);
+                this.builder.trendline?.close?.regression * (100 - 1 * (this.builder.setup.long ? 1 : -1)).percent(), this.share, this.limit);
             stop.comment = "Undercut Trendline";
             primary.group.push(stop);
         }
@@ -341,6 +341,7 @@ class Pyramid {
         let cond = `${symbol} MARK AT OR ${this.builder.setup.long ? "ABOVE" : "BELOW"} ${this.protect.financial()}`;
         let highest_high = this.builder.bookkeeper?.highest_high ?? 0;
         let lowest_low = this.builder.bookkeeper?.lowest_low ?? NaN;
+        let break_even = false;
         if (this.limit === this.price) {
             if (this.builder.config.cond_sl == true && ((this.builder.setup.long && highest_high > 0) || (!this.builder.setup.long && !isNaN(lowest_low)))) {
                 let lock_half_profit = Math.min(10, (Math.min(this.builder.risk.risk * 2, 10) + this.builder.risk.profit) / 2.0);
@@ -362,6 +363,7 @@ class Pyramid {
             primary.group.push(new StopOrder(symbol, this.builder.setup.close(), this.share, this.limit));
             primary.group.slice(-1)[0].submit = cond;
             if ((this.builder.setup.long && highest_high >= this.protect) || (!this.builder.setup.long && lowest_low <= this.protect)) {
+                break_even = true;
                 primary.group.slice(-1)[0].submit = null;
                 primary.group.slice(-1)[0].loss = 0;
             }
@@ -389,6 +391,21 @@ class Pyramid {
                 primary.group.slice(-1)[0].submit = cond;
                 primary.group.slice(-1)[0].comment = "Round-Trip";
             }
+        }
+
+        if (!break_even && this.builder.bookkeeper?.atrp != null && !this.builder.setup.long) {
+            let stop = this.builder.setup.long ?
+                new Expr(`close(period=AggregationPeriod.DAY)[1]*(100-${this.builder.bookkeeper?.aurp}*1.5)/100`)
+                : new Expr(`close(period=AggregationPeriod.DAY)[1]*(100+${this.builder.bookkeeper?.adrp}*1.5)/100`);
+            let volatile = _stop_loss_order(this.builder, stop, this.share);
+            volatile.comment = "Volatile Stop-Loss";
+            if (this.limit == this.price) {
+                let close = this.builder.bookkeeper?.price;
+                let stop_price = this.builder.setup.long ? close * (100 - this.builder.bookkeeper?.aurp * 1.5) / 100
+                    : close * (100 + this.builder.bookkeeper?.adrp * 1.5) / 100;
+                volatile.loss = Math.max((this.limit - stop_price) * this.share * (this.builder.setup.long ? 1 : -1), 0);
+            }
+            primary.group.push(volatile);
         }
 
         // if (this.limit === this.price && this.builder.setup.long) {
@@ -623,7 +640,7 @@ function _stop_loss_order(builder: PyramidBuilder, stop: number | Expr, share: n
         order = new StopOrder(symbol, builder.setup.close(), share, typeof stop == "number" ? stop : stop.toString());
     }
     if (cost !== null && typeof stop == "number") {
-        order.loss = Math.max((cost - stop) * share * (builder.setup.long ? 1: -1), 0);
+        order.loss = Math.max((cost - stop) * share * (builder.setup.long ? 1 : -1), 0);
     }
     return order;
 }
