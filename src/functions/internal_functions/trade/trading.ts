@@ -311,7 +311,7 @@ class Pyramid {
         }
         let trailing_price = _ma_trailing_price(this.builder);
         let ma_stop_ignore_atr = this.builder.config.ma_stop_ignore_atr ?? false;
-        if (this.limit === this.price && trailing_price != null) {
+        if (this.limit === this.price && trailing_price != null && this.builder.config.ma_stop != null) {
             if (ma_stop_ignore_atr
                 || (this.builder.setup.long && (trailing_price < this.builder.bookkeeper?.price - this.builder.bookkeeper?.atr))
                 || (!this.builder.setup.long && (trailing_price > this.builder.bookkeeper?.price + this.builder.bookkeeper?.atr))) {
@@ -393,7 +393,7 @@ class Pyramid {
             }
         }
 
-        if (!break_even && this.builder.bookkeeper?.atrp != null && !this.builder.setup.long) {
+        if (this.limit === this.price && !break_even && this.builder.bookkeeper?.atrp != null && !this.builder.setup.long) {
             let stop = this.builder.setup.long ?
                 new Expr(`close(period=AggregationPeriod.DAY)[1]*(100-${this.builder.bookkeeper?.aurp}*1.5)/100`)
                 : new Expr(`close(period=AggregationPeriod.DAY)[1]*(100+${this.builder.bookkeeper?.adrp}*1.5)/100`);
