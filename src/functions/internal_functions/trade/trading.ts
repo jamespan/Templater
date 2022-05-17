@@ -589,6 +589,7 @@ export class PyramidBuilder {
             let pyramid = new Pyramid(this, i, trade);
             pyramid.build();
             pyramid.exit();
+            pyramid.primary.tidy()
             pyramids.push(pyramid);
         }
         return pyramids;
@@ -796,6 +797,7 @@ export function riding(builder: PyramidBuilder, params: any) {
 
             // remove profit taking
             multi.orders[1].group.shift();
+            multi.tidy();
         }
     }
     return strategies;

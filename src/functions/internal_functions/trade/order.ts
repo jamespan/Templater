@@ -151,11 +151,18 @@ export class OrderOCO {
   }
 
   getLoss() {
-    return Math.min(...this.group.map(x => x.loss).filter((x)=>!isNaN(x)));
+    return Math.min(...this.group.map(x => x.loss).filter((x) => !isNaN(x)));
   }
 
   getProfit() {
-    return this.group.map(x => x.profit).filter((x)=>!isNaN(x)).reduce((x, y) => x + y, 0);
+    return this.group.map(x => x.profit).filter((x) => !isNaN(x)).reduce((x, y) => x + y, 0);
+  }
+
+  /**
+   * orders in a OCO should be different by symbol, buy/sell, price or distination
+   */
+  tidy() {
+
   }
 }
 
@@ -176,15 +183,19 @@ export class MultiOCO {
   }
 
   getLoss() {
-    return this.orders.map(x => x.getLoss()).filter((x)=>!isNaN(x)).reduce((x, y) => x + y, 0);
+    return this.orders.map(x => x.getLoss()).filter((x) => !isNaN(x)).reduce((x, y) => x + y, 0);
   }
 
   getProfit() {
-    return this.orders.map(x => x.getProfit()).filter((x)=>!isNaN(x)).reduce((x, y) => x + y, 0);
+    return this.orders.map(x => x.getProfit()).filter((x) => !isNaN(x)).reduce((x, y) => x + y, 0);
   }
 
   String() {
     return this.orders.map(x => x.toString()).join('\n')
+  }
+
+  tidy() {
+    this.orders.forEach(o => o.tidy())
   }
 }
 
