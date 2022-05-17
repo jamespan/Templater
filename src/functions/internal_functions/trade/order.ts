@@ -1,4 +1,4 @@
-import {Study} from "./thinkscript";
+import {BiExpr, Expr, Or, Study} from "./thinkscript";
 
 function financial(x: number) {
   return x.toFixed(2);
@@ -162,7 +162,28 @@ export class OrderOCO {
    * orders in a OCO should be different by symbol, buy/sell, price or distination
    */
   tidy() {
-
+    let tided = [] as ConditionalOrder[];
+    let m: MarketOrder = null;
+    let expressions = [] as Expr[];
+    let commons = [] as string[];
+    for (const o of this.group) {
+      if (o instanceof MarketOrder) {
+        if (m == null) {
+          m = o;
+          tided.push(o);
+        }
+        commons.push(o.comment);
+        expressions.push(((o.submit) as Study).body as Expr)
+      } else {
+        tided.push(o);
+      }
+    }
+    (m.submit as Study).body = new Or(...expressions);
+    m.comment = commons.join(" or ");
+    if (m.comment.trim() == "") {
+      m.comment = null;
+    }
+    this.group = tided;
   }
 }
 
@@ -199,3 +220,23 @@ export class MultiOCO {
   }
 }
 
+if (module.id == ".") {
+  let oco = new OrderOCO();
+  let order: ConditionalOrder = null;
+  order = new LimitOrder('AAPL', 'SELL', 3, 50);
+  order.submit = new Study(new BiExpr('3', '<', '4'));
+  oco.group.push(order);
+  order = new MarketOrder('AAPL', 'SELL', 3);
+  order.submit = new Study(new BiExpr('3', '<', '4'));
+  order.comment = "AA"
+  oco.group.push(order);
+  order = new MarketOrder('AAPL', 'SELL', 3);
+  order.submit = new Study(new BiExpr('3', '<', '5'));
+  order.comment = "BB"
+  oco.group.push(order);
+  oco.group.forEach(o => console.log(o.toString()));
+
+  oco.tidy();
+  console.log("tidy")
+  oco.group.forEach(o => console.log(o.toString()));
+}
