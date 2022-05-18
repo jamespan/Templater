@@ -166,23 +166,26 @@ export class OrderOCO {
     let m: MarketOrder = null;
     let expressions = [] as Expr[];
     let commons = [] as string[];
+    let losses = [];
     for (const o of this.group) {
       if (o instanceof MarketOrder) {
         if (m == null) {
-          m = o;
-          tided.push(o);
+          m = Object.assign(Object.create(Object.getPrototypeOf(o)), o);
+          tided.push(m);
         }
         commons.push(o.comment);
         expressions.push(((o.submit) as Study).body as Expr)
+        losses.push(o.loss);
       } else {
         tided.push(o);
       }
     }
-    (m.submit as Study).body = new Or(...expressions);
+    m.submit = new Study(new Or(...expressions));
     m.comment = commons.join(" or ");
     if (m.comment.trim() == "") {
       m.comment = null;
     }
+    m.loss = Math.min(...losses.filter(x=>!isNaN(x)));
     this.group = tided;
   }
 }
@@ -229,10 +232,12 @@ if (module.id == ".") {
   order = new MarketOrder('AAPL', 'SELL', 3);
   order.submit = new Study(new BiExpr('3', '<', '4'));
   order.comment = "AA"
+  order.loss = 100;
   oco.group.push(order);
   order = new MarketOrder('AAPL', 'SELL', 3);
   order.submit = new Study(new BiExpr('3', '<', '5'));
   order.comment = "BB"
+  order.loss = 10;
   oco.group.push(order);
   oco.group.forEach(o => console.log(o.toString()));
 

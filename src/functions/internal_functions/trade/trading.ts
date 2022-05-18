@@ -256,7 +256,10 @@ class Pyramid {
                     conditions.push(NotExtendedShorting.over(`(${this.builder.setup.stop.financial()}*${(100 - Math.min(5, round(this.builder.risk.risk * 1.5, 2))).percent().toFixed(4)})`));
                 }
             }
-            if (this.builder.setup.pattern.contains('Pullback')) {
+            if (this.builder.setup.pattern.contains('Follow Through')) {
+                conditions = [BeforeMarketClose(), TightBidAskSpread];
+                conditions.push(PassThrough.value("close(period=AggregationPeriod.DAY)[1]*1.017"));
+            } else if (this.builder.setup.pattern.contains('Pullback')) {
                 conditions.push(BuyRangeSMA);
                 conditions.push(PassThrough.value("close(period=AggregationPeriod.DAY)[1]"));
                 if (this.builder.config.reversal ?? true) {
@@ -493,6 +496,7 @@ class Pyramid {
                 this.exits["universe"] = this.exit_segment(config, multi);
             }
         }
+        multi.tidy();
     }
 
     exit_base(part: number = 2): MultiOCO {
@@ -502,7 +506,7 @@ class Pyramid {
         for (let i = 0; i < shares.length; ++i) {
             let oco = new OrderOCO();
             this.primary.group.forEach((o: any) => {
-                let order = Object.assign(Object.create(Object.getPrototypeOf(o)), o)
+                let order = Object.assign(Object.create(Object.getPrototypeOf(o)), o);
                 order.share = shares[i];
                 oco.group.push(order);
             });
@@ -684,49 +688,6 @@ function _ma_dynamic_stop(builder: PyramidBuilder, share: number, ma_length: num
     }
     stop.comment = "Undercut Moving Average";
     return stop;
-}
-
-function _selling_into_weakness(builder: PyramidBuilder, share: number, stop: number, drawback: number, target: number): OrderOCO {
-    let symbol = builder.setup.symbol;
-    let oco = new OrderOCO();
-
-    let expr = [] as Expr[];
-    oco.group.push(_stop_loss_order(builder, stop, share));
-    oco.group.slice(-1)[0].comment = "Round-Trip";
-    expr.push((oco.group.slice(-1)[0].submit as Study).body as Expr);
-    // if (builder.config.cond_sl == true && builder.setup.long) {
-    //     oco.group.push(new StopOrder(symbol, builder.setup.close(), share, stop));
-    //     oco.group.slice(-1)[0].comment = "Round-Trip";
-    // } else {
-    //     oco.group.push(new StopOrder(symbol, builder.setup.close(), share, stop));
-    //     oco.group.slice(-1)[0].comment = "Round-Trip";
-    // }
-
-    if ((builder.bookkeeper?.highest_high ?? 0) >= builder.setup.pivot * 1.1 && builder.setup.long) {
-        let half_profit_stop = HalfProfit.with(stop, builder.bookkeeper?.highest_high);
-        let order = _stop_loss_order(builder, half_profit_stop, share);
-        order.comment = "Protect Half Profit";
-        oco.group.push(order);
-        expr.push((oco.group.slice(-1)[0].submit as Study).body as Expr);
-    } else {
-        oco.group.push(new TrailStopOrder(symbol, builder.setup.close(), share, builder.setup.long ? `MARK-${drawback.financial()}%` : `MARK+${drawback.financial()}%`));
-    }
-    if (builder.bookkeeper?.sma10_trailing != null) {
-        oco.group.push(_ma_dynamic_stop(builder, share));
-        expr.push((oco.group.slice(-1)[0].submit as Study).body as Expr);
-    }
-    if (expr.length > 0) {
-        let comments = [];
-        for (let i = 0; i < expr.length; ++i) {
-            comments.unshift(oco.group.pop().comment);
-        }
-        let order = new MarketOrder(symbol, builder.setup.close(), share);
-        order.tif = "GTC";
-        order.submit = new Study(new Or(...expr));
-        order.comment = comments.join(", ")
-        oco.group.push(order);
-    }
-    return oco;
 }
 
 export function riding(builder: PyramidBuilder, params: any) {
