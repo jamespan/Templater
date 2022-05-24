@@ -269,8 +269,8 @@ class Pyramid {
                 if (this.builder.setup.long) {
                     conditions.push(BuyRange.of(this.price, this.limit));
                 } else {
-                    let offset = upper / 2;
-                    conditions.push(SellRange.of(this.price * (100 - offset).percent(), this.price * (100 + offset).percent()));
+                    let offset = upper / 3;
+                    conditions.push(SellRange.of(this.price * (100 - offset).percent(), this.price * (100 + offset * 2).percent()));
                 }
             }
 

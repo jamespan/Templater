@@ -70,7 +70,7 @@ export function FromTodayOn() {
 }
 
 export function BeforeMarketClose(){
-    return new And(FromTodayOn(), new And(AvoidMarketOpenVolatile, new Call("Between", 'SecondsTillTime(1600)', 0, 60)));
+    return new And(FromTodayOn(), new And(AvoidMarketOpenVolatile, new Call("Between", 'SecondsTillTime(1600)', 0, 120)));
 }
 
 export const SMA = new (class extends VarExpr {
@@ -120,7 +120,7 @@ export const Between_Low = new (class extends Call {
 })("Between", "low");
 
 export const BuyRange = Between_High;
-export const SellRange = Between_Low;
+export const SellRange = Between_High;
 export const BuyRangeSMA = Between_High.of(new BiExpr(SMA_LAST, "+", 0.1), new BiExpr(SMA_LAST, "*", 1.05))
 
 // condition not support bid ask
