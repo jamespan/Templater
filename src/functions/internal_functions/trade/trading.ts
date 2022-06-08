@@ -303,6 +303,11 @@ class Pyramid {
             }
         }
 
+        if (this.builder.config?.mode == "manual") {
+            primary.trigger.submit = null;
+            primary.trigger.tif = "DAY";
+        }
+
         primary.group.push(new LimitOrder(symbol, this.builder.setup.close(), this.share, this.take));
         primary.group.slice(-1)[0].profit = (this.take - this.limit) * this.share * (this.builder.setup.long ? 1 : -1);
         primary.group.slice(-1)[0].comment = "Profit Taking";
@@ -339,9 +344,9 @@ class Pyramid {
         // round-trip sell rule
         this.protect = this.builder.setup.pivot * (100 + 10 * (this.builder.setup.long ? 1 : -1)).percent();
         if (this.builder.setup.long) {
-            this.protect = Math.min(this.price + (this.price - this.stop) * 2, this.protect);
+            this.protect = Math.min(this.price + Math.max(0, (this.price - this.stop)) * 2, this.protect);
         } else {
-            this.protect = Math.max(this.price + (this.price - this.stop) * 2, this.protect);
+            this.protect = Math.max(this.price + Math.min(0, (this.price - this.stop)) * 2, this.protect);
         }
         let cond = `${symbol} MARK AT OR ${this.builder.setup.long ? "ABOVE" : "BELOW"} ${this.protect.financial()}`;
         let highest_high = this.builder.bookkeeper?.highest_high ?? 0;
@@ -472,13 +477,13 @@ class Pyramid {
         primary.group.slice(-1)[0].comment = "Initial Stop-Loss";
 
         if (this.limit === this.price) {
-            if ((this.builder.setup.long && highest_high >= this.protect) || (!this.builder.setup.long && lowest_low <= this.protect)) {
+            if (this.protect != this.price && ((this.builder.setup.long && highest_high >= this.protect) || (!this.builder.setup.long && lowest_low <= this.protect))) {
                 primary.group.pop();
             } else {
                 let better_sl = primary.group.slice(0, -1).filter((o) => {
                     return !isNaN(o.loss) && o.loss <= primary.group.slice(-1)[0].loss;
                 });
-                if (better_sl.length > 0) {
+                if (better_sl.length > 0 && this.stop <= this.price) {
                     primary.group.pop();
                 }
             }
