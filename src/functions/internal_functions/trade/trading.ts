@@ -248,7 +248,9 @@ class Pyramid {
                 primary.trigger.tif = 'GTC';
             }
             let conditions = [AvoidMarketOpenVolatile, TightBidAskSpread] as Expr[];
-            conditions.push(this.builder.setup.long ? AvoidFallingKnife : ShortingIntoStrength);
+            if (this.builder.setup.long) {
+                conditions.push(this.builder.setup.long ? AvoidFallingKnife : ShortingIntoStrength);
+            }
             if (!this.builder.risk.isPercentage) {
                 if (this.builder.setup.long) {
                     conditions.push(NotExtended.over(`(${this.builder.setup.stop.financial()}*${(100 + Math.min(7, round(this.builder.risk.risk * 1.5, 2))).percent().toFixed(4)})`));
