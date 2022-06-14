@@ -35,7 +35,7 @@ class ConditionalOrder {
 
   submitAfterOpen() {
     let now = new Date();
-    this.submitAt = `${now.getMonth() + 1}/${now.getDate()}/${now.getFullYear() % 100} 09:31:00`;
+    this.submitAt = `${now.getMonth() + 1}/${now.getDate()}/${now.getFullYear() % 100} 09:35:00`;
   }
 
   toString() {

@@ -418,16 +418,6 @@ class Pyramid {
             primary.group.push(volatile);
         }
 
-        // if (this.limit === this.price && this.builder.setup.long) {
-        //     let ma_trailing_stop = (this.builder.bookkeeper?.sma10_trailing ?? 0) * 0.985;
-        //     if (this.builder.setup.long && ma_trailing_stop > this.limit) {
-        //         primary.group.pop();
-        //     }
-        //     if (!this.builder.setup.long && ma_trailing_stop < this.limit) {
-        //         primary.group.pop();
-        //     }
-        // }
-
         if (this.limit !== this.price && this.builder.risk.isPercentage) {
             primary.group.push(new StopOrder(symbol, this.builder.setup.close(), this.share, `TRG${this.builder.setup.long ? "-" : "+"}${this.builder.risk.risk.financial()}%`));
             primary.group.slice(-1)[0].loss = (this.limit * this.builder.risk.risk / 100) * this.share;
@@ -436,6 +426,11 @@ class Pyramid {
                 let insurance = new StopOrder(symbol, this.builder.setup.close(), this.share, this.limit * (100 - 7 * (this.builder.setup.long ? 1 : -1)).percent());
                 insurance.comment = "Emergency Stop-Loss";
                 primary.group.push(insurance);
+
+                let backup = new StopOrder(symbol, this.builder.setup.close(), this.share, this.stop * (100 - 0.5 * (this.builder.setup.long ? 1 : -1)).percent());
+                backup.comment = "Backup Stop-Loss";
+                backup.submitAfterOpen();
+                primary.group.push(backup);
 
                 if (this.builder.setup.pattern.contains('Volatility Contraction')) {
                     if (this.builder.bookkeeper?.lower_low?.length >= 3 && this.builder.bookkeeper.lower_low[2] >= this.stop * 1.005) {
@@ -639,14 +634,8 @@ function _stop_loss_order(builder: PyramidBuilder, stop: number | Expr, share: n
         order.tif = "GTC";
         if (builder.setup.long) {
             order.submit = new Study(AvoidMarketOpenVolatile.and(Undercut.value(stop)));
-            // if (cost !== null) {
-            //     order.submit.body = (order.submit.body as Expr).or(Undercut.value(cost * (1 - 7 / 100)));
-            // }
         } else {
             order.submit = new Study(AvoidMarketOpenVolatile.and(PassThrough.value(stop)));
-            // if (cost !== null) {
-            //     order.submit.body = (order.submit.body as Expr).or(PassThrough.value(cost * (1 + 7 / 100)));
-            // }
         }
     } else {
         order = new StopOrder(symbol, builder.setup.close(), share, typeof stop == "number" ? stop : stop.toString());
