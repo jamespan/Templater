@@ -427,10 +427,18 @@ class Pyramid {
                 insurance.comment = "Emergency Stop-Loss";
                 primary.group.push(insurance);
 
-                let backup = new StopOrder(symbol, this.builder.setup.close(), this.share, this.stop * (100 - 0.5 * (this.builder.setup.long ? 1 : -1)).percent());
-                backup.comment = "Backup Stop-Loss";
-                backup.submitAfterOpen();
-                primary.group.push(backup);
+                if (this.limit === this.price) {
+                    let backup = new StopOrder(symbol, this.builder.setup.close(), this.share, this.stop * (100 - 0.5 * (this.builder.setup.long ? 1 : -1)).percent());
+                    backup.comment = "Backup Stop-Loss";
+                    let currentTime = new Date().toLocaleString(
+                      'zh-CN', {timeZone: 'America/New_York'}).substr(-8);
+                    if ('09:35:00' <= currentTime && currentTime <= '16:00:00') {
+                        backup.submitAt = null;
+                    } else {
+                        backup.submitAfterOpen();
+                    }
+                    primary.group.push(backup);
+                }
 
                 if (this.builder.setup.pattern.contains('Volatility Contraction')) {
                     if (this.builder.bookkeeper?.lower_low?.length >= 3 && this.builder.bookkeeper.lower_low[2] >= this.stop * 1.005) {
