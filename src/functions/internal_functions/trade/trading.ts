@@ -427,11 +427,11 @@ class Pyramid {
                 insurance.comment = "Emergency Stop-Loss";
                 primary.group.push(insurance);
 
-                if (this.limit === this.price) {
+                if (this.limit == this.price) {
                     let backup = new StopOrder(symbol, this.builder.setup.close(), this.share, this.stop * (100 - 0.5 * (this.builder.setup.long ? 1 : -1)).percent());
                     backup.comment = "Backup Stop-Loss";
                     let currentTime = new Date().toLocaleString(
-                      'zh-CN', {timeZone: 'America/New_York'}).substr(-8);
+                        'zh-CN', {timeZone: 'America/New_York'}).substr(-8);
                     if ('09:35:00' <= currentTime && currentTime <= '16:00:00') {
                         backup.submitAt = null;
                     } else {
@@ -480,14 +480,19 @@ class Pyramid {
         primary.group.slice(-1)[0].comment = "Initial Stop-Loss";
 
         if (this.limit === this.price) {
-            if (this.protect != this.price && ((this.builder.setup.long && highest_high >= this.protect) || (!this.builder.setup.long && lowest_low <= this.protect))) {
+            if (this.protect != this.price && (
+                (this.builder.setup.long && highest_high >= this.protect && this.stop <= this.price)
+                || (!this.builder.setup.long && lowest_low <= this.protect && this.stop >= this.price)
+            )) {
                 primary.group.pop();
                 primary.group.pop();
             } else {
                 let better_sl = primary.group.slice(0, -1).filter((o) => {
                     return !isNaN(o.loss) && o.loss <= primary.group.slice(-1)[0].loss;
                 });
-                if (better_sl.length > 0 && this.stop <= this.price) {
+                if (better_sl.length > 0 &&
+                    ((this.builder.setup.long && this.stop <= this.price)
+                        || (!this.builder.setup.long && this.stop >= this.price))) {
                     primary.group.pop();
                     primary.group.pop();
                 }
