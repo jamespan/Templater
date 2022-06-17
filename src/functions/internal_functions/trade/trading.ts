@@ -482,11 +482,13 @@ class Pyramid {
         if (this.limit === this.price) {
             if (this.protect != this.price && ((this.builder.setup.long && highest_high >= this.protect) || (!this.builder.setup.long && lowest_low <= this.protect))) {
                 primary.group.pop();
+                primary.group.pop();
             } else {
                 let better_sl = primary.group.slice(0, -1).filter((o) => {
                     return !isNaN(o.loss) && o.loss <= primary.group.slice(-1)[0].loss;
                 });
                 if (better_sl.length > 0 && this.stop <= this.price) {
+                    primary.group.pop();
                     primary.group.pop();
                 }
             }
