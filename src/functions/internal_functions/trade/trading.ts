@@ -732,7 +732,7 @@ export function riding(builder: PyramidBuilder, params: any) {
         for (const [key, config] of Object.entries(params[idx])) {
             let shares = config.shares;
             let target = evaluate(config.target);
-            let stop = config['support'];
+            let stop = evaluate(config.support);
 
             if (pyramid == null) {
                 pyramid = new Pyramid(builder, 0, `${shares}@${stop}`);
