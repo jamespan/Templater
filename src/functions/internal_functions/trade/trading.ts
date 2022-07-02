@@ -426,7 +426,6 @@ class Pyramid {
                 let insurance = new StopOrder(symbol, this.builder.setup.close(), this.share, this.limit * (100 - 7 * (this.builder.setup.long ? 1 : -1)).percent());
                 insurance.comment = "Emergency Stop-Loss";
                 primary.group.push(insurance);
-
                 if (this.limit == this.price) {
                     let backup = new StopOrder(symbol, this.builder.setup.close(), this.share, this.stop * (100 - 0.5 * (this.builder.setup.long ? 1 : -1)).percent());
                     backup.comment = "Backup Stop-Loss";
@@ -484,6 +483,7 @@ class Pyramid {
                 (this.builder.setup.long && highest_high >= this.protect && this.stop <= this.price)
                 || (!this.builder.setup.long && lowest_low <= this.protect && this.stop >= this.price)
             )) {
+                console.log("pop initial stop-loss for round-trip in action")
                 primary.group.pop();
                 primary.group.pop();
             } else {
@@ -493,7 +493,8 @@ class Pyramid {
                 if (better_sl.length > 0 &&
                     ((this.builder.setup.long && this.stop <= this.price)
                         || (!this.builder.setup.long && this.stop >= this.price))) {
-                    primary.group.pop();
+                    console.log("pop initial stop-loss for better st order found")
+                    // primary.group.pop();
                     primary.group.pop();
                 }
             }

@@ -183,7 +183,6 @@ export class OrderOCO {
     if (m == null) {
       return;
     }
-    console.log(m);
     m.submit = new Study(new Or(...expressions));
     m.comment = commons.join(" or ");
     if (m.comment.trim() == "") {
