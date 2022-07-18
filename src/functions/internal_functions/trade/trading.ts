@@ -426,18 +426,7 @@ class Pyramid {
                 let insurance = new StopOrder(symbol, this.builder.setup.close(), this.share, this.limit * (100 - 7 * (this.builder.setup.long ? 1 : -1)).percent());
                 insurance.comment = "Emergency Stop-Loss";
                 primary.group.push(insurance);
-                if (this.limit == this.price) {
-                    let backup = new StopOrder(symbol, this.builder.setup.close(), this.share, this.stop * (100 - 0.5 * (this.builder.setup.long ? 1 : -1)).percent());
-                    backup.comment = "Backup Stop-Loss";
-                    let currentTime = new Date().toLocaleString(
-                        'zh-CN', {timeZone: 'America/New_York'}).substr(-8);
-                    if ('09:35:00' <= currentTime && currentTime <= '16:00:00') {
-                        backup.submitAt = null;
-                    } else {
-                        backup.submitAfterOpen();
-                    }
-                    primary.group.push(backup);
-                }
+
 
                 if (this.builder.setup.pattern.contains('Volatility Contraction')) {
                     if (this.builder.bookkeeper?.lower_low?.length >= 3 && this.builder.bookkeeper.lower_low[2] >= this.stop * 1.005) {
@@ -477,6 +466,17 @@ class Pyramid {
             primary.group.slice(-1)[0].loss = Math.max(0, (this.limit - this.stop) * this.share * (this.builder.setup.long ? 1 : -1));
         }
         primary.group.slice(-1)[0].comment = "Initial Stop-Loss";
+
+        let backup = new StopOrder(symbol, this.builder.setup.close(), this.share, this.stop * (100 - 0.5 * (this.builder.setup.long ? 1 : -1)).percent());
+        backup.comment = "Backup Stop-Loss";
+        let currentTime = new Date().toLocaleString(
+            'zh-CN', {timeZone: 'America/New_York'}).substr(-8);
+        if ('09:35:00' <= currentTime && currentTime <= '16:00:00') {
+            backup.submitAt = null;
+        } else {
+            backup.submitAfterOpen();
+        }
+        primary.group.push(backup);
 
         if (this.limit === this.price) {
             if (this.protect != this.price && (
