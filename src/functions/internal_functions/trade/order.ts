@@ -38,6 +38,10 @@ class ConditionalOrder {
     this.submitAt = `${now.getMonth() + 1}/${now.getDate()}/${now.getFullYear() % 100} 09:35:00`;
   }
 
+  key() {
+    return "";
+  }
+
   toString() {
     let expression = "";
     if (this.submitAt != null) {
@@ -85,6 +89,10 @@ export class StopOrder extends ConditionalOrder {
     super(symbol, direction, share);
     this.stop = typeof stop === 'number' ? financial(stop) : stop;
     this.stopType = "STD";
+  }
+
+  key(): string {
+    return `STP ${this.direction} ${this.symbol} ${this.prefix}${this.share} ${this.stop}`;
   }
 
   toString() {
@@ -163,6 +171,7 @@ export class OrderOCO {
    */
   tidy() {
     let tided = [] as ConditionalOrder[];
+    let uniq = new Set();
     let m: MarketOrder = null;
     let expressions = [] as Expr[];
     let commons = [] as string[];
@@ -177,7 +186,10 @@ export class OrderOCO {
         expressions.push(((o.submit) as Study).body as Expr)
         losses.push(o.loss);
       } else {
-        tided.push(o);
+        if (o.key() === "" || !uniq.has(o.key())) {
+          tided.push(o);
+          uniq.add(o.key());
+        }
       }
     }
     if (m == null) {
