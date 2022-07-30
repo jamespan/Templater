@@ -565,18 +565,16 @@ class Pyramid {
         let stops = [-((avg - 1) * this.limit * this.share + stop * shares[0]) / (shares[1]), stop]
         for (let i = 0; i < shares.length; ++i) {
             let oco = base.orders[i];
-            let initial = oco.group.slice(-1)[0];
-            if (initial.comment != "Initial Stop-Loss") {
-                continue
-            }
+            let initial = oco.group.filter(o => o.comment == "Initial Stop-Loss")[0];
             if (this.builder.config.cond_sl) {
                 initial.submit = new Study(this.builder.setup.long ? Undercut.value(stops[i]) : PassThrough.value(stops[i]));
             } else {
                 (initial as StopOrder).stop = stops[i];
             }
             initial.loss = (stops[i] - this.limit) * shares[i] * (this.builder.setup.long ? -1 : 1);
-            oco.group.pop();
-            oco.group.push(initial);
+
+            let backup = oco.group.filter(o => o.comment == "Backup Stop-Loss")[0] as StopOrder;
+            backup.stop = (stops[i] * (100 + (this.builder.setup.long ? -1 : 1) * 0.5) / 100).financial();
         }
         return base;
     }
