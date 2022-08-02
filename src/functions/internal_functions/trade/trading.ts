@@ -567,7 +567,12 @@ class Pyramid {
             let oco = base.orders[i];
             let initial = oco.group.filter(o => o.comment == "Initial Stop-Loss")[0];
             if (this.builder.config.cond_sl) {
-                initial.submit = new Study(this.builder.setup.long ? Undercut.value(stops[i]) : PassThrough.value(stops[i]));
+                if (this.builder.setup.long) {
+                    initial.submit = new Study(AvoidMarketOpenVolatile.and(Undercut.value(stops[i])));
+                } else {
+                    initial.submit = new Study(AvoidMarketOpenVolatile.and(PassThrough.value(stops[i])));
+                }
+                // initial.submit = new Study(this.builder.setup.long ? Undercut.value(stops[i]) : PassThrough.value(stops[i]));
             } else {
                 (initial as StopOrder).stop = stops[i];
             }
